@@ -1,0 +1,19 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Abrir en Edge (Live Server)",
+            "request": "launch",
+            "type": "pwa-msedge",
+            "url": "http://localhost:5500/codigo/inicio.html",
+            "webRoot": "${workspaceFolder}"
+        },
+        {
+            "name": "Abrir en Chrome (Live Server)",
+            "request": "launch",
+            "type": "pwa-chrome",
+            "url": "http://localhost:5500/codigo/inicio.html",
+            "webRoot": "${workspaceFolder}"
+        }
+    ]
+}
