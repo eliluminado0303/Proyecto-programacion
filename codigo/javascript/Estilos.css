@@ -1,0 +1,480 @@
+/* ===== 1. VARIABLES =====
+   Guardamos los colores en un solo lugar. Se usan con var(--nombre).
+   Si quieres cambiar el look de toda la página, solo cambias estos valores. */
+:root {
+  --asfalto: #26292d;   /* gris oscuro, como una vía */
+  --placa: #ffd21f;     /* amarillo de las placas colombianas */
+  --pintura: #1f4e8c;   /* azul para títulos y enlaces */
+  --papel: #f5f5f2;     /* fondo general, blanco roto */
+  --blanco: #ffffff;
+  --gris: #6b7076;      /* textos secundarios */
+}
+
+/* ===== 2. REGLAS GENERALES =====
+   El * selecciona TODOS los elementos.
+   box-sizing: border-box hace que el padding y el borde cuenten dentro
+   del width, así las medidas no se descuadran. */
+* {
+  box-sizing: border-box;
+}
+
+/* scroll-behavior hace que al tocar un enlace del menú la página baje suave.
+   scroll-padding-top deja un pequeño espacio arriba del título al llegar. */
+html {
+  scroll-behavior: smooth;
+  scroll-padding-top: 16px;
+}
+
+/* Si la persona tiene activada la opción de "reducir movimiento"
+   en su dispositivo, quitamos el desplazamiento suave. */
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+}
+
+/* body: lo que afecta a toda la página.
+   margin: 0 quita el borde blanco que el navegador pone por defecto.
+   line-height da aire entre líneas para leer mejor. */
+body {
+  margin: 0;
+  font-family: Arial, Helvetica, sans-serif;
+  line-height: 1.6;
+  color: var(--asfalto);
+  background-color: var(--papel);
+}
+
+/* ===== 3. CABECERA ===== */
+.cabecera {
+  background-color: var(--asfalto);
+  color: var(--blanco);
+  text-align: center;
+  padding: 32px 16px 0;
+}
+
+/* El logo: max-width evita que se salga de la pantalla en celulares;
+   height: auto mantiene la proporción. */
+.logo {
+  max-width: 100%;
+  height: auto;
+  border-radius: 50%;       /* lo vuelve redondo; quítalo si tu logo no es cuadrado */
+}
+
+/* EL NOMBRE COMO UNA PLACA (lo más llamativo de la página).
+   inline-block: la caja se ajusta al tamaño del texto, no a todo el ancho.
+   border + border-radius: borde negro con esquinas redondeadas.
+   letter-spacing: separa las letras como en una placa real. */
+.placa {
+  display: inline-block;
+  margin: 16px 0 8px;
+  padding: 10px 28px;
+  background-color: var(--placa);
+  color: #111;
+  border: 4px solid #111;
+  border-radius: 12px;
+  font-family: Impact, "Arial Black", sans-serif;
+  font-size: 2.2rem;        /* rem = múltiplo del tamaño base de letra (1rem = 16px) */
+  font-weight: normal;
+  letter-spacing: 3px;
+  text-transform: uppercase;
+}
+
+.lema {
+  margin: 0 0 20px;
+  color: #d9d9d9;
+}
+
+/* ===== 4. MENÚ =====
+   display: flex pone los enlaces en una fila.
+   justify-content: center los centra; gap los separa;
+   flex-wrap deja que bajen de línea si no caben (celulares). */
+.menu {
+  display: flex;
+  flex-wrap: wrap;
+  justify-content: center;
+  gap: 8px 24px;
+  padding: 14px 0;
+  border-top: 1px solid #44484d;
+}
+
+.menu a {
+  color: var(--blanco);
+  text-decoration: none;
+  padding: 4px 2px;
+  border-bottom: 3px solid transparent;  /* borde invisible, para que no "salte" al aparecer */
+}
+
+/* :hover = cuando el mouse está encima. */
+.menu a:hover {
+  border-bottom-color: var(--placa);
+}
+
+/* ===== 5. CONTENIDO =====
+   max-width limita el ancho en pantallas grandes;
+   margin: 0 auto centra la caja horizontalmente. */
+main {
+  max-width: 860px;
+  margin: 0 auto;
+  padding: 24px 16px;
+}
+
+/* Cada sección es una caja blanca con una franja amarilla a la izquierda. */
+section {
+  background-color: var(--blanco);
+  border-left: 6px solid var(--placa);
+  border-radius: 6px;
+  padding: 8px 24px 16px;
+  margin-bottom: 20px;
+}
+
+h2 {
+  color: var(--pintura);
+  font-size: 1.5rem;
+}
+
+/* Las redes y los datos no llevan viñetas.
+   Las redes usan flex: botones en fila que bajan de línea si no caben. */
+.redes,
+.datos {
+  list-style: none;
+  padding-left: 0;
+}
+
+.redes {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 12px;
+}
+
+.redes a {
+  display: inline-block;
+  padding: 8px 16px;
+  background-color: var(--pintura);
+  color: var(--blanco);
+  text-decoration: none;
+  border-radius: 6px;
+}
+
+.redes a:hover {
+  background-color: var(--asfalto);
+}
+
+/* Enlaces normales dentro del texto. */
+a {
+  color: var(--pintura);
+}
+
+/* :focus-visible muestra un contorno cuando navegas con el teclado (tecla Tab).
+   Es importante para accesibilidad. */
+a:focus-visible {
+  outline: 3px solid var(--placa);
+  outline-offset: 2px;
+}
+
+/* ===== 5B. PESTAÑAS (sin JavaScript) =====
+   Los círculos (radio) se esconden: lo que se ve son los <label>.
+   El símbolo ~ significa "los hermanos que vienen después".
+   :checked = el radio que está marcado. */
+input[name="pestana"] {
+  position: absolute;
+  opacity: 0;               /* invisible, pero sigue funcionando con el teclado */
+}
+
+.pestanas {
+  display: flex;            /* los dos botones en fila */
+  gap: 8px;
+  border-bottom: 3px solid var(--asfalto);
+}
+
+.pestanas label {
+  padding: 10px 24px;
+  background-color: #e4e4e0;
+  border-radius: 8px 8px 0 0;   /* redondea solo arriba */
+  font-weight: bold;
+  cursor: pointer;
+}
+
+.pestanas label:hover {
+  background-color: #d6d6d1;
+}
+
+/* Pestaña activa: la que corresponde al radio marcado */
+#tab-vehiculos:checked ~ .pestanas label[for="tab-vehiculos"],
+#tab-servicios:checked ~ .pestanas label[for="tab-servicios"] {
+  background-color: var(--asfalto);
+  color: var(--placa);
+}
+
+/* Contorno visible al navegar con teclado */
+#tab-vehiculos:focus-visible ~ .pestanas label[for="tab-vehiculos"],
+#tab-servicios:focus-visible ~ .pestanas label[for="tab-servicios"] {
+  outline: 3px solid var(--pintura);
+  outline-offset: 2px;
+}
+
+/* Los paneles empiezan escondidos; solo se muestra el de la pestaña marcada */
+.panel {
+  display: none;
+  padding-top: 16px;
+}
+
+#tab-vehiculos:checked ~ .paneles #panel-vehiculos,
+#tab-servicios:checked ~ .paneles #panel-servicios {
+  display: block;
+}
+
+/* ===== 5C. TARJETAS (FLEX) =====
+   .tarjetas es el contenedor; .tarjeta es cada caja.
+   flex: 1 1 260px = crece, se encoge, y mide unos 260px de base.
+   En PC quedan varias en fila; en celular bajan una debajo de otra. */
+.tarjetas {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 16px;
+}
+
+.tarjeta {
+  flex: 1 1 260px;
+  display: flex;            /* flex también dentro de la tarjeta... */
+  flex-direction: column;   /* ...pero en columna (de arriba hacia abajo) */
+  padding: 16px;
+  background-color: var(--papel);
+  border: 1px solid #dcdcd6;
+  border-radius: 8px;
+}
+
+.tarjeta h3 {
+  margin: 12px 0 8px;
+  color: var(--pintura);
+}
+
+/* Video o iframe: ocupa todo el ancho de la tarjeta, en forma 16:9 */
+.tarjeta video,
+.tarjeta iframe {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #000;
+  border: 0;
+  border-radius: 6px;
+}
+
+.datos li {
+  padding: 4px 0;
+  border-bottom: 1px dashed #cfcfcf;
+}
+
+/* margin-top: auto empuja el botón al fondo; así quedan alineados
+   aunque una tarjeta tenga más texto que otra. */
+.boton {
+  margin-top: auto;
+  padding: 10px 16px;
+  background-color: #1d8238;
+  color: var(--blanco);
+  text-align: center;
+  text-decoration: none;
+  font-weight: bold;
+  border-radius: 6px;
+}
+
+.boton:hover {
+  background-color: #166429;
+}
+
+/* ===== 5D. ESTADO DEL VEHÍCULO =====
+   .estado es la forma de la etiqueta (píldora); .disponible y .vendido
+   solo cambian el color. Una clase hace la forma y otra el color. */
+.estado {
+  align-self: flex-start;   /* en una columna flex, evita que se estire a todo el ancho */
+  margin-top: 12px;
+  padding: 2px 12px;
+  border-radius: 999px;     /* un radio enorme da el borde totalmente redondo */
+  font-size: 0.85rem;
+  font-weight: bold;
+}
+
+.estado.disponible {
+  background-color: #d8f3dc;
+  color: #1b5e2b;
+}
+
+.estado.vendido {
+  background-color: #f8d7da;
+  color: #8a1c24;
+}
+
+/* :has() = "la tarjeta que contiene un .vendido". Si el navegador es muy
+   antiguo y no lo entiende, solo se pierde este efecto; la etiqueta sigue. */
+.tarjeta:has(.vendido) video,
+.tarjeta:has(.vendido) iframe {
+  filter: grayscale(1);
+  opacity: 0.5;
+}
+
+.tarjeta:has(.vendido) h3 {
+  color: var(--gris);
+}
+
+/* ===== 6. PIE DE PÁGINA ===== */
+.pie {
+  background-color: var(--asfalto);
+  color: #d9d9d9;
+  text-align: center;
+  padding: 16px;
+  font-size: 0.9rem;
+}
+
+.pie p {
+  margin: 0;
+}
+
+/* ===== 7. CELULARES =====
+   @media aplica estas reglas solo si la pantalla mide 600px o menos. */
+@media (max-width: 600px) {
+  .placa {
+    font-size: 1.5rem;
+    padding: 8px 16px;
+  }
+
+  section {
+    padding: 8px 16px 16px;
+  }
+
+  .pestanas label {
+    flex: 1;                /* cada pestaña ocupa la mitad del ancho */
+    text-align: center;
+    padding: 10px 8px;
+  }
+}
+
+/* ===== 8. MENÚ HAMBURGUESA (tres líneas) =====
+   El botón se ubica arriba a la derecha. El menú queda escondido y se
+   despliega al tocarlo (app.js le agrega la clase "abierto"). */
+.cabecera { position: relative; }
+
+.hamburguesa {
+  position: absolute;
+  top: 12px;
+  right: 12px;
+  width: 46px;
+  height: 46px;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  gap: 5px;
+  padding: 0 11px;
+  background: var(--placa);
+  border: 0;
+  border-radius: 8px;
+  cursor: pointer;
+}
+
+.hamburguesa span {
+  display: block;
+  height: 3px;
+  background: #111;
+  border-radius: 2px;
+}
+
+.hamburguesa:focus-visible { outline: 3px solid var(--blanco); outline-offset: 2px; }
+
+.cabecera .menu { display: none; }
+
+.cabecera .menu.abierto {
+  display: flex;
+  flex-direction: column;
+  align-items: stretch;
+  text-align: left;
+  gap: 0;
+  max-width: 420px;
+  margin: 0 auto;
+}
+
+.menu a,
+.menu summary {
+  display: block;
+  padding: 10px 4px;
+  color: var(--blanco);
+  text-decoration: none;
+  cursor: pointer;
+  border-bottom: 1px solid #44484d;
+}
+
+.menu summary { font-weight: bold; }
+.menu details a { padding-left: 20px; color: #d9d9d9; }
+.menu a:hover, .menu summary:hover { color: var(--placa); }
+
+/* ===== 9. INICIO, ACCESOS Y MARCADORES ===== */
+.accesos { display: flex; flex-wrap: wrap; gap: 12px; margin-bottom: 8px; }
+.accesos .boton { flex: 1 1 160px; margin-top: 0; }
+.boton.claro { background-color: var(--pintura); }
+.boton.claro:hover { background-color: var(--asfalto); }
+
+/* Marcador cuando todavía no hay video */
+.sin-video {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  background-color: #3a3d42;
+  color: #d9d9d9;
+  border-radius: 6px;
+}
+
+.tarjeta:has(.vendido) .sin-video { filter: grayscale(1); opacity: 0.5; }
+
+.tarjeta .nota { color: var(--gris); font-size: 0.9rem; }
+.tarjeta .resena { font-style: italic; margin: 0 0 8px; }
+.pendiente { color: var(--gris); font-size: 0.9rem; }
+
+/* ===== 10. CARRUSEL DEL INICIO ===== */
+.carrusel { margin-bottom: 16px; }
+.slide { display: none; margin: 0; }
+.slide.activa { display: block; }
+.slide img { width: 100%; aspect-ratio: 16 / 9; object-fit: cover; border-radius: 6px; }
+.slide figcaption { padding-top: 6px; color: var(--gris); }
+
+.carrusel-controles { display: flex; align-items: center; justify-content: center; gap: 16px; padding-top: 8px; }
+
+.carrusel-controles button {
+  width: 44px;
+  height: 44px;
+  font-size: 1.6rem;
+  line-height: 1;
+  background: var(--asfalto);
+  color: var(--placa);
+  border: 0;
+  border-radius: 50%;
+  cursor: pointer;
+}
+
+.carrusel-controles button:focus-visible { outline: 3px solid var(--pintura); outline-offset: 2px; }
+
+/* ===== 11. FOTOS EN TARJETAS Y LISTA DE DOCUMENTOS ===== */
+/* Foto de una moto o artículo: ancho completo, forma 16:9 como el video, recortada sin deformar. */
+.tarjeta img {
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  border-radius: 6px;
+  background-color: #3a3d42;
+}
+
+.tarjeta:has(.vendido) img { filter: grayscale(1); opacity: 0.5; }
+
+/* Lista de documentos de cada trámite */
+.documentos {
+  margin: 0 0 12px;
+  padding-left: 20px;
+  font-size: 0.95rem;
+}
+
+/* ===== 12. GALERÍA DENTRO DE LAS TARJETAS =====
+   Todas las diapositivas miden lo mismo (4:3) para que la tarjeta no cambie de alto al pasar de una a otra.
+   object-fit: contain muestra la foto completa (la moto no se recorta); lo que sobra se rellena con el fondo oscuro. */
+.tarjeta .slide img,
+.tarjeta .slide video,
+.tarjeta .slide .sin-video {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  object-fit: contain;
+  background-color: #1f2124;
+}

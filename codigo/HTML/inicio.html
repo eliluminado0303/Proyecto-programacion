@@ -1,0 +1,158 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Vehículos del Alejo | Compraventa de vehículos</title>
+    <link rel="stylesheet" href="Estilos.css">
+  </head>
+  <body>
+
+    <header class="cabecera">
+      <img class="logo" src="../../imagenes/mi tio xdxdxd.jpeg" alt="Logo de Vehículos del Alejo" width="200" height="200">
+      <h1 class="placa">Vehículos del Alejo</h1>
+      <p class="lema">Compraventa de vehículos y servicios</p>
+
+      <nav class="menu">
+        <a href="#quienes">¿Quiénes somos?</a>
+        <a href="#tienda">Vehículos y servicios</a>
+        <a href="#contacto">Contacto</a>
+      </nav>
+    </header>
+
+    <main>
+
+      <section>
+        <h2 id="quienes">¿Quiénes somos?</h2>
+        <p>Somos una compraventa de vehículos más servicios, administrada por un familiar. Vendemos y compramos carros y motos. Por ahora nos encuentras a través de redes sociales.</p>
+      </section>
+
+      <!-- ================= PESTAÑAS =================
+           Los <input> y los <label> trabajan juntos (por el id y el "for").
+           Al hacer clic en un label se marca su input, y el CSS muestra el panel que corresponde. -->
+      <section>
+        <h2 id="tienda">Vehículos y servicios</h2>
+
+        <input type="radio" name="pestana" id="tab-vehiculos" checked>
+        <input type="radio" name="pestana" id="tab-servicios">
+
+        <div class="pestanas">
+          <label for="tab-vehiculos">Vehículos</label>
+          <label for="tab-servicios">Servicios</label>
+        </div>
+
+        <div class="paneles">
+
+          <!-- PANEL 1: VEHÍCULOS -->
+          <div class="panel" id="panel-vehiculos">
+            <p>Estos son los vehículos disponibles. Toca el botón de cada uno para preguntar por él.</p>
+
+            <div class="tarjetas">
+
+              <!-- ===== MOLDE DE VEHÍCULO: copia desde aquí ===== -->
+              <article class="tarjeta">
+                <!-- 1) VIDEO: cambia el nombre del video y de la imagen de portada -->
+                <video controls preload="metadata" poster="../imagenes/portada1.jpg">
+                  <source src="../videos/vehiculo1.mp4" type="video/mp4">
+                  Tu navegador no puede reproducir este video.
+                </video>
+                <!-- Si el video está en YouTube, borra el <video> de arriba y usa esto:
+                <iframe src="https://www.youtube.com/embed/ID_DEL_VIDEO" title="Video del vehículo" allowfullscreen></iframe>
+                -->
+
+                <!-- 2) INFORMACIÓN: edita los textos -->
+                <!-- ESTADO: para marcarlo como vendido, cambia "disponible" por "vendido"
+                     en la clase Y el texto de la etiqueta (son dos cambios en la misma línea) -->
+                <span class="estado disponible">Disponible</span>
+                <h3>Marca Modelo (Carro)</h3>
+                <ul class="datos">
+                  <li><strong>Año:</strong> 2020</li>
+                  <li><strong>Kilometraje:</strong> 00.000 km</li>
+                  <li><strong>Precio:</strong> $00.000.000</li>
+                </ul>
+                <p>Describe aquí el vehículo: color, combustible, papeles al día, etc.</p>
+
+                <!-- 3) BOTÓN: puedes cambiar el mensaje después de "text=" -->
+                <a class="boton" href="https://wa.me/573015602104?text=Hola%2C%20quiero%20informaci%C3%B3n%20de%20este%20veh%C3%ADculo">Preguntar por WhatsApp</a>
+              </article>
+              <!-- ===== MOLDE DE VEHÍCULO: hasta aquí ===== -->
+
+              <!-- Segundo vehículo de ejemplo (copia del molde) -->
+              <article class="tarjeta">
+                <video controls preload="metadata" poster="../imagenes/portada2.jpg">
+                  <source src="../videos/vehiculo2.mp4" type="video/mp4">
+                  Tu navegador no puede reproducir este video.
+                </video>
+                <span class="estado vendido">vendido</span>
+                <h3>Marca Modelo (Moto)</h3>
+                <ul class="datos">
+                  <li><strong>Año:</strong> 2022</li>
+                  <li><strong>Kilometraje:</strong> 00.000 km</li>
+                  <li><strong>Precio:</strong> $0.000.000</li>
+                </ul>
+                <p>Describe aquí la moto.</p>
+                <a class="boton" href="https://wa.me/573015602104?text=Hola%2C%20quiero%20informaci%C3%B3n%20de%20esta%20moto">Preguntar por WhatsApp</a>
+              </article>
+
+            </div>
+          </div>
+
+          <!-- PANEL 2: SERVICIOS -->
+          <div class="panel" id="panel-servicios">
+            <div class="tarjetas">
+
+              <article class="tarjeta">
+                <h3>Polarizado a domicilio</h3>
+                <p>Vamos hasta donde estés. Cuéntanos qué vehículo tienes y te cotizamos.</p>
+                <a class="boton" href="https://wa.me/573015602104?text=Hola%2C%20quiero%20cotizar%20un%20polarizado">Cotizar polarizado</a>
+              </article>
+
+              <article class="tarjeta">
+                <h3>Trámites</h3>
+                <p>Te ayudamos con los trámites de tu vehículo. (Escribe aquí cuáles trámites hacen.)</p>
+                <a class="boton" href="https://wa.me/573015602104?text=Hola%2C%20necesito%20ayuda%20con%20un%20tr%C3%A1mite">Consultar trámite</a>
+              </article>
+
+              <article class="tarjeta">
+                <h3>Financiación</h3>
+                <p>Opción de crédito para tu vehículo.</p>
+              </article>
+
+              <article class="tarjeta">
+                <h3>Métodos de pago</h3>
+                <ul>
+                  <li>Transferencia bancaria</li>
+                  <li>Nequi</li>
+                  <li>Daviplata</li>
+                  <li>Efectivo</li>
+              </article>
+
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      <section>
+        <h2 id="contacto">Contacto y redes</h2>
+        <p><strong>Teléfono / WhatsApp:</strong> +57 301 5602104</p>
+        <p><strong>Correo:</strong> <a href="mailto:Battcontador@gmail.com">Battcontador@gmail.com</a></p>
+
+        <p><strong>Nuestras redes:</strong></p>
+        <ul class="redes">
+          <li><a href="https://www.instagram.com/lasmotosdealejo?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==">Instagram: lasmotosdealejo</a></li>
+          <li><a href="https://www.tiktok.com/@alejandroparizados">Tiktok: @alejandroparizados</a></li>
+          <li><a href="https://wa.me/573015602104">WhatsApp: +57 301 5602104</a></li>
+        </ul>
+
+        <p><strong>Link al comercio:</strong> <a href="#">página del comercio</a> (provisional)</p>
+      </section>
+
+    </main>
+
+    <footer class="pie">
+      <p>© 2026 Vehículos del Alejo.</p>
+    </footer>
+
+  </body>
+</html>
