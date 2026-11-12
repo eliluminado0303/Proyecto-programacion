@@ -1,6 +1,7 @@
 /* ===================== DATOS DEL NEGOCIO =====================
-   Aquí se edita el contenido. Fotos y videos: escribe solo el NOMBRE del archivo;
-   deben estar en la carpeta "imagenes". Si no existe, se muestra "Foto próximamente". */
+   Aquí se edita el contenido (igual que en el app.js anterior).
+   Fotos y videos: escribe solo el NOMBRE del archivo; deben estar en la carpeta "imagenes".
+   Si el archivo no existe, la página muestra "Foto próximamente". */
 
 export const NEGOCIO = "Negocios con Alejo";
 export const TELEFONO = "573015602104";
@@ -9,7 +10,8 @@ export const CORREO = "Battcontador@gmail.com";
 export const HORARIO = "8:00 a. m. a 10:00 p. m.";
 export const LOGO = "mi tio xdxdxd.jpeg";
 
-/* estado: "disponible" o "vendido". fotos: con 2 o más aparecen las flechas ‹ ›.
+/* MOTOS INICIALES: se cargan la primera vez. Después las motos se agregan y editan desde el panel de administrador (#/admin).
+   estado: "disponible" o "vendido". fotos: con 2 o más aparecen las flechas ‹ ›.
    video: opcional (ej: "discover.mp4", guardado también en la carpeta imagenes). */
 export const vehiculos = [
   { nombre: "Discover 125 morada", modelo: "2025", km: "8.300 km", precio: "$6.200.000", color: "Morada",
@@ -23,20 +25,15 @@ export const vehiculos = [
     fotos: ["NSperfil", "NSfrontal", "NSlado"], video: "", estado: "disponible" },
 ];
 
-/* Entregas y reseñas: son EJEMPLOS, reemplazar por reales. */
+/* Entregas: es un EJEMPLO, reemplazar por entregas reales. */
 export const entregas = [
   { titulo: "Entrega de ejemplo", texto: "Aquí va la foto o el video de la entrega a un cliente.", foto: "", video: "" },
-];
-export const resenas = [
-  { nombre: "Cliente de ejemplo", texto: "Reseña de ejemplo: buena atención y todo claro desde el principio." },
-  { nombre: "Otro cliente", texto: "Reseña de ejemplo: la moto estaba tal como la mostraron." },
 ];
 
 /* Plantillas de WhatsApp: [saludo, [campos que el cliente completa]] */
 export const plantillas = {
   vender: ["Hola, quiero que me ayuden a vender mi moto.", ["Marca y línea", "Año / modelo", "Kilometraje", "Número de dueños", "¿Impuestos al día?", "¿Papeles (SOAT y técnico-mecánica) al día?", "¿Tiene prenda o embargo?", "Ciudad donde está matriculada", "Ubicación de la moto (ciudad y barrio)", "Precio que espero", "(Adjunto fotos)"]],
   prestamo: ["Hola, quiero hacer un préstamo con prenda.", ["Valor que necesito", "Qué dejaría en prenda (artículo o valor)", "Valor aproximado de lo que dejaría", "Ciudad o barrio"]],
-  resena: ["Hola, quiero dejar una reseña.", ["Mi nombre", "Servicio o moto", "Mi opinión"]],
   comprar: ["Hola, quiero información de esta moto:", []],
 };
 
@@ -62,3 +59,8 @@ export const redes = [
   { texto: "TikTok", detalle: "Negocios con Alejo", url: "https://www.tiktok.com/@alejandroparizados" },
   { texto: "WhatsApp", detalle: TELEFONO_VISIBLE, url: `https://wa.me/${TELEFONO}` },
 ];
+
+
+/* Clave del panel de administrador. SOLO sirve en el modo de prueba local; cámbiala.
+   Al publicar la página se reemplaza por un inicio de sesión real. */
+export const CLAVE_ADMIN_LOCAL = "alejo2026";

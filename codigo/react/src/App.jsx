@@ -1,6 +1,7 @@
-import { useEffect, useRef, useState } from "react";
-import { NEGOCIO, TELEFONO, TELEFONO_VISIBLE, CORREO, HORARIO, LOGO, vehiculos, entregas, resenas, plantillas, DATOS_TRAMITE, tramites, otrosServicios, redes } from "./datos.js";
-
+import { createContext, useContext, useEffect, useRef, useState } from "react";
+import { createPortal } from "react-dom";
+import { almacen } from "./almacen.js";
+import { NEGOCIO, TELEFONO, TELEFONO_VISIBLE, CORREO, HORARIO, LOGO, entregas, plantillas, DATOS_TRAMITE, tramites, otrosServicios, redes } from "./datos.js";
 /* ======== HOOKS ======== */
 /* Guarda el scroll en variables CSS (--scroll en px y --progreso de 0 a 1).
    Con eso el CSS mueve la moto del encabezado, gira sus ruedas y hace el parallax. */
@@ -47,9 +48,14 @@ const linkWhatsApp = (mensaje) => `https://wa.me/${TELEFONO}?text=${encodeURICom
 // Arma el mensaje: una línea de saludo y un campo por línea ("Año: ").
 const mensajeDe = (saludo, campos = []) => [saludo, ...campos.map((c) => c + ": ")].join("\n");
 
-// Ruta de un archivo de la carpeta imagenes (sirve también para videos).
-const urlArchivo = (archivo) => import.meta.env.BASE_URL + encodeURI(archivo);
+// Fotos que vienen de internet o subidas desde el panel de administrador (no están en la carpeta imagenes).
+const esExterna = (a) => /^(data:|https?:|blob:)/.test(a);
 
+// Ruta de un archivo de la carpeta imagenes (sirve también para videos).
+const urlArchivo = (archivo) => (esExterna(archivo) ? archivo : import.meta.env.BASE_URL + encodeURI(archivo));
+
+// Datos compartidos por toda la página (motos y reseñas). Los carga App y los lee cualquier pantalla.
+const Datos = createContext({ motos: [], resenas: [], recargar: async () => {} });
 /* ======== PLACA ======== */
 /* La placa de moto con relieve. tamano: "sm" (encabezado) o "lg" (portada).
    Todo el efecto 3D está en el CSS (.placa). */
@@ -180,11 +186,17 @@ function Marcador() {
 }
 
 /* Imagen de la carpeta imagenes. Si no existe, muestra "Foto próximamente". */
-function Imagen({ archivo, alt }) {
-  const intentos = archivo ? (/\.\w+$/.test(archivo) ? [archivo] : EXTENSIONES.map((e) => archivo + e)) : [];
+function Imagen({ archivo, alt, alCargar }) {
+  const intentos = archivo
+    ? (esExterna(archivo) || /\.\w+$/.test(archivo) ? [archivo] : EXTENSIONES.map((e) => archivo + e))
+    : [];
   const [n, setN] = useState(0);
   if (n >= intentos.length) return <Marcador />;
-  return <img src={urlArchivo(intentos[n])} alt={alt} loading="lazy" onError={() => setN(n + 1)} />;
+  return (
+    <img src={urlArchivo(intentos[n])} alt={alt} loading="lazy"
+      onLoad={alCargar ? (e) => alCargar(e.currentTarget) : undefined}
+      onError={() => setN(n + 1)} />
+  );
 }
 
 function Video({ archivo }) {
@@ -196,31 +208,93 @@ function Video({ archivo }) {
   );
 }
 
-/* Fotos (item.fotos o item.foto) y video de una tarjeta.
-   Con una sola cosa se muestra tal cual; con 2 o más, carrusel con flechas. */
-function Media({ item }) {
-  const [actual, setActual] = useState(0);
-  const fotos = item.fotos || (item.foto ? [item.foto] : []);
-  const nombre = item.nombre || item.titulo;
-  const piezas = fotos.map((f) => <Imagen key={f} archivo={f} alt={nombre} />);
-  if (item.video) piezas.push(<Video key="video" archivo={item.video} />);
+/* Pantalla completa para ver las fotos grandes. Se cierra con la X, con Esc o tocando el fondo. */
+function Visor({ fotos, inicio, nombre, cerrar }) {
+  const [i, setI] = useState(inicio);
+  const ir = (n) => setI((n + fotos.length) % fotos.length);
 
-  if (piezas.length === 0) return <div className="media"><Marcador /></div>;
-  if (piezas.length === 1) return <div className="media">{piezas[0]}</div>;
+  useEffect(() => {
+    const tecla = (e) => {
+      if (e.key === "Escape") cerrar();
+      if (e.key === "ArrowLeft") ir(i - 1);
+      if (e.key === "ArrowRight") ir(i + 1);
+    };
+    window.addEventListener("keydown", tecla);
+    document.body.style.overflow = "hidden";   // evita que la página se mueva por detrás
+    return () => {
+      window.removeEventListener("keydown", tecla);
+      document.body.style.overflow = "";
+    };
+  });
 
-  const ir = (n) => setActual((n + piezas.length) % piezas.length);   // el % da la vuelta al llegar al final
+  const parar = (fn) => (e) => { e.stopPropagation(); fn(); };
   return (
-    <div className="media carrusel">
-      {piezas.map((p, k) => (
-        <figure key={k} className={"slide" + (k === actual ? " activa" : "")}>{p}</figure>
-      ))}
-      <button type="button" className="flecha ant" aria-label="Anterior" onClick={() => ir(actual - 1)}>‹</button>
-      <button type="button" className="flecha sig" aria-label="Siguiente" onClick={() => ir(actual + 1)}>›</button>
-      <span className="contador">{actual + 1} / {piezas.length}</span>
+    <div className="visor" role="dialog" aria-modal="true" aria-label={"Fotos de " + nombre} onClick={cerrar}>
+      <button type="button" className="visor-cerrar" aria-label="Cerrar" onClick={parar(cerrar)}>✕</button>
+      <div className="visor-img" onClick={(e) => e.stopPropagation()}>
+        <Imagen archivo={fotos[i]} alt={nombre} />
+      </div>
+      {fotos.length > 1 && (
+        <>
+          <button type="button" className="flecha ant" aria-label="Anterior" onClick={parar(() => ir(i - 1))}>‹</button>
+          <button type="button" className="flecha sig" aria-label="Siguiente" onClick={parar(() => ir(i + 1))}>›</button>
+          <span className="contador">{i + 1} / {fotos.length}</span>
+        </>
+      )}
     </div>
   );
 }
 
+function Media({ item }) {
+  const [actual, setActual] = useState(0);
+  const [visor, setVisor] = useState(false);          // ¿está abierta la foto en grande?
+  const fotos = item.fotos || (item.foto ? [item.foto] : []);
+  // La caja toma la forma de la primera foto: así no se recorta y no quedan franjas negras.
+  const [proporcion, setProporcion] = useState(fotos.length ? 3 / 4 : 16 / 9);
+  const medir = (img) => setProporcion(Math.min(1.6, Math.max(0.6, img.naturalWidth / img.naturalHeight)));
+  const nombre = item.nombre || item.titulo;
+  const piezas = fotos.map((f, k) => (
+    <Imagen key={f.slice(-40)} archivo={f} alt={nombre} alCargar={k === 0 ? medir : undefined} />
+  ));
+  if (item.video) piezas.push(<Video key="video" archivo={item.video} />);
+
+  if (piezas.length === 0) return <div className="media" style={{ aspectRatio: 4 / 3 }}><Marcador /></div>;
+
+  const ir = (n) => setActual((n + piezas.length) % piezas.length);   // el % da la vuelta al llegar al final
+  const ampliar = (k) => { if (k < fotos.length) setVisor(true); };    // el video no se amplía, ya tiene su pantalla completa
+  const icono = fotos.length > 0 && (
+    <span className="icono-ampliar" aria-hidden="true">
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.2" strokeLinecap="round" strokeLinejoin="round">
+        <path d="M4 9V4h5M20 9V4h-5M4 15v5h5M20 15v5h-5" />
+      </svg>
+    </span>
+  );
+
+  return (
+    <>
+      {piezas.length === 1 ? (
+        <div className={"media" + (fotos.length ? " ampliable" : "")} style={{ aspectRatio: proporcion }} onClick={() => ampliar(0)}>
+          {piezas[0]}{icono}
+        </div>
+      ) : (
+        <div className="media carrusel ampliable" style={{ aspectRatio: proporcion }} onClick={() => ampliar(actual)}>
+          {piezas.map((p, k) => (
+            <figure key={k} className={"slide" + (k === actual ? " activa" : "")}>{p}</figure>
+          ))}
+          <button type="button" className="flecha ant" aria-label="Anterior" onClick={(e) => { e.stopPropagation(); ir(actual - 1); }}>‹</button>
+          <button type="button" className="flecha sig" aria-label="Siguiente" onClick={(e) => { e.stopPropagation(); ir(actual + 1); }}>›</button>
+          <span className="contador">{actual + 1} / {piezas.length}</span>
+          {actual < fotos.length && icono}
+        </div>
+      )}
+      {/* createPortal lo dibuja encima de toda la página, no dentro de la tarjeta */}
+      {visor && createPortal(
+        <Visor fotos={fotos} inicio={Math.min(actual, fotos.length - 1)} nombre={nombre} cerrar={() => setVisor(false)} />,
+        document.body
+      )}
+    </>
+  );
+}
 /* ======== BOTÓN DE WHATSAPP Y SECCIÓN ======== */
 /* Botón que abre WhatsApp con el mensaje ya escrito. variante: "" o "claro" */
 function BotonWA({ texto, mensaje, variante = "" }) {
@@ -369,23 +443,106 @@ function TarjetaMoto({ v }) {
 }
 
 function Motos() {
+  const { motos } = useContext(Datos);
   // Disponibles primero, vendidas al final.
-  const lista = [...vehiculos].sort((a, b) => (a.estado === "vendido") - (b.estado === "vendido"));
+  const lista = [...motos].sort((a, b) => (a.estado === "vendido") - (b.estado === "vendido"));
   return (
     <Seccion titulo="Motos">
       {lista.length ? (
         <div className="tarjetas">
-          {lista.map((v, i) => <Reveal key={v.nombre} retraso={i * 90}><TarjetaMoto v={v} /></Reveal>)}
+          {lista.map((v, i) => <Reveal key={v.id} retraso={i * 90}><TarjetaMoto v={v} /></Reveal>)}
         </div>
       ) : <p>Por ahora no hay motos disponibles.</p>}
     </Seccion>
   );
 }
 
+/* ======== ESTRELLAS Y FORMULARIO DE RESEÑAS ======== */
+// Color según la nota: 1-2 rojo, 3 amarillo/naranja, 4-5 verde (los colores están en estilos.css).
+const nivelDe = (n) => (n <= 2 ? "malo" : n === 3 ? "medio" : "bueno");
+
+/* Muestra una calificación fija: círculos con estrella, del color de la nota */
+function Estrellas({ valor, tam = "" }) {
+  const llenas = Math.round(valor);
+  return (
+    <span className={`estrellas ${tam} nivel-${nivelDe(llenas)}`} role="img" aria-label={`${valor.toFixed(1)} de 5 estrellas`}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <span key={n} className={"estrella" + (n <= llenas ? " llena" : "")}>★</span>
+      ))}
+    </span>
+  );
+}
+
+/* Los 5 círculos que la persona toca para calificar; se pintan según la nota elegida */
+function SelectorEstrellas({ valor, onChange }) {
+  const [sobre, setSobre] = useState(0);   // círculo sobre el que está el mouse
+  const textos = ["", "Malo", "Regular", "Bueno", "Muy bueno", "Excelente"];
+  const activa = sobre || valor;
+  return (
+    <div className="selector" data-nivel={activa ? nivelDe(activa) : ""} role="radiogroup" aria-label="Calificación"
+      onMouseLeave={() => setSobre(0)}>
+      {[1, 2, 3, 4, 5].map((n) => (
+        <button key={n} type="button" role="radio" aria-checked={valor === n}
+          aria-label={`${n} ${n === 1 ? "estrella" : "estrellas"}`}
+          className={n <= activa ? "llena" : ""}
+          onMouseEnter={() => setSobre(n)} onClick={() => onChange(n)}>★</button>
+      ))}
+      <span className="selector-texto">{textos[activa]}</span>
+    </div>
+  );
+}
+
+function FormularioResena({ alEnviar }) {
+  const [nombre, setNombre] = useState("");
+  const [estrellas, setEstrellas] = useState(0);
+  const [texto, setTexto] = useState("");
+  const [aviso, setAviso] = useState(null);
+  const [enviando, setEnviando] = useState(false);
+
+  const enviar = async (e) => {
+    e.preventDefault();
+    if (nombre.trim().length < 2) return setAviso({ tipo: "error", texto: "Escribe tu nombre." });
+    if (!estrellas) return setAviso({ tipo: "error", texto: "Elige una calificación de 1 a 5 estrellas." });
+    if (texto.trim().length < 10) return setAviso({ tipo: "error", texto: "Cuéntanos un poco más (mínimo 10 letras)." });
+    setEnviando(true);
+    try {
+      await almacen.crearResena({ nombre: nombre.trim(), estrellas, texto: texto.trim() });
+      setNombre(""); setEstrellas(0); setTexto("");
+      setAviso({ tipo: "ok", texto: "¡Gracias por dejar tu reseña!" });
+      alEnviar();
+    } catch (err) {
+      setAviso({ tipo: "error", texto: err.message });
+    }
+    setEnviando(false);
+  };
+
+  return (
+    <form className="formulario panel-resena" onSubmit={enviar}>
+      <label>Tu nombre
+        <input value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={40} placeholder="Ej: Carlos" />
+      </label>
+      <div>
+        <span className="etiqueta">Tu calificación</span>
+        <SelectorEstrellas valor={estrellas} onChange={setEstrellas} />
+      </div>
+      <label>Tu opinión
+        <textarea rows="4" value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={500}
+          placeholder="Cuéntanos cómo fue tu experiencia" />
+      </label>
+      {aviso && <p className={"aviso " + aviso.tipo}>{aviso.texto}</p>}
+      <div className="fila-botones">
+        <button className="boton" type="submit" disabled={enviando}>{enviando ? "Enviando..." : "Publicar reseña"}</button>
+      </div>
+    </form>
+  );
+}
+
 function Confianza() {
-  const vendidos = vehiculos.filter((v) => v.estado === "vendido");
+  const { motos, resenas, recargar } = useContext(Datos);
+  const vendidos = motos.filter((v) => v.estado === "vendido");
+  const promedio = resenas.length ? resenas.reduce((suma, r) => suma + r.estrellas, 0) / resenas.length : 0;
   const Bloque = ({ hijos, aviso }) =>
-    hijos.length ? <div className="tarjetas">{hijos}</div> : <p className="pendiente">{aviso}</p>;
+    hijos.length ? <div className="tarjetas">{hijos}</div> : aviso ? <p className="pendiente">{aviso}</p> : null;
 
   const tarjetasEntregas = [
     ...entregas.map((e) => (
@@ -395,7 +552,7 @@ function Confianza() {
       </article>
     )),
     ...vendidos.map((v) => (
-      <article className="tarjeta" key={v.nombre}>
+      <article className="tarjeta" key={v.id}>
         <div className="tarjeta-cuerpo">
           <span className="estado vendido">Vendido</span><h3>{v.nombre}</h3>
           <p className="nota">{v.modelo} · {v.precio}</p>
@@ -404,8 +561,13 @@ function Confianza() {
     )),
   ];
   const tarjetasResenas = resenas.map((r) => (
-    <article className="tarjeta" key={r.nombre}>
-      <div className="tarjeta-cuerpo"><p className="resena">“{r.texto}”</p><strong>{r.nombre}</strong></div>
+    <article className="tarjeta resena-tarjeta" key={r.id}>
+      <div className="tarjeta-cuerpo">
+        <Estrellas valor={r.estrellas} />
+        <p className="resena">“{r.texto}”</p>
+        <strong>{r.nombre}</strong>
+        <span className="nota">{new Date(r.fecha).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}</span>
+      </div>
     </article>
   ));
 
@@ -413,14 +575,24 @@ function Confianza() {
     <Seccion titulo="Vendidos y reseñas">
       <h3>Entregas a clientes</h3>
       <Bloque hijos={tarjetasEntregas} aviso="Pronto compartiremos entregas a nuestros clientes." />
-      <h3>Lo que dicen nuestros clientes</h3>
-      <Bloque hijos={tarjetasResenas} aviso="Pronto compartiremos opiniones de nuestros clientes." />
-      <p className="nota">¿Ya fuiste cliente? Cuéntanos cómo te fue.</p>
-      <BotonWA texto="Dejar una reseña" mensaje={mensajeDe(...plantillas.resena)} />
+
+      {resenas.length > 0 && (
+        <>
+          <h3>Lo que dicen nuestros clientes</h3>
+          <p className="resumen-estrellas">
+            <Estrellas valor={promedio} tam="grande" />
+            <span><strong>{promedio.toFixed(1)}</strong> de 5 · {resenas.length} {resenas.length === 1 ? "reseña" : "reseñas"}</span>
+          </p>
+          <Bloque hijos={tarjetasResenas} />
+        </>
+      )}
+
+      <h3>Deja tu reseña</h3>
+      <p className="nota">¿Ya fuiste cliente? Cuéntanos cómo te fue; tu opinión ayuda a otras personas.</p>
+      <FormularioResena alEnviar={recargar} />
     </Seccion>
   );
 }
-
 /* ======== PANTALLAS: SERVICIOS ======== */
 function Vender() {
   return (
@@ -506,7 +678,234 @@ function Contacto() {
     </Seccion>
   );
 }
+/* ======== PANEL DEL ADMINISTRADOR (no aparece en el menú: se entra por  #/admin ) ======== */
+const MOTO_VACIA = { nombre: "", modelo: "", km: "", precio: "", color: "", descripcion: "", estado: "disponible", fotos: [], video: "" };
+const soloNumeros = (t) => String(t || "").replace(/\D/g, "");
+const dinero = (n) => "$" + Number(n).toLocaleString("es-CO");
+const kilometros = (n) => Number(n).toLocaleString("es-CO") + " km";
 
+function Admin() {
+  const [dentro, setDentro] = useState(almacen.haySesion());
+  if (!dentro) return <Ingreso entrar={() => setDentro(true)} />;
+  return <Panel salir={() => { almacen.cerrarSesion(); setDentro(false); }} />;
+}
+
+function Ingreso({ entrar }) {
+  const [clave, setClave] = useState("");
+  const [error, setError] = useState("");
+  const enviar = async (e) => {
+    e.preventDefault();
+    try { await almacen.iniciarSesion(clave); entrar(); }
+    catch (err) { setError(err.message); }
+  };
+  return (
+    <Seccion titulo="Administrador">
+      <p>Esta zona es solo para el dueño del negocio.</p>
+      <form className="formulario" onSubmit={enviar}>
+        <label>Clave de administrador
+          <input type="password" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete="current-password" />
+        </label>
+        {error && <p className="aviso error">{error}</p>}
+        <div className="fila-botones"><button className="boton" type="submit">Entrar</button></div>
+      </form>
+    </Seccion>
+  );
+}
+
+function Panel({ salir }) {
+  const { motos, recargar } = useContext(Datos);
+  const [form, setForm] = useState(MOTO_VACIA);
+  const [editando, setEditando] = useState(null);      // id de la moto que se está editando
+  const [mensaje, setMensaje] = useState(null);
+  const [subiendo, setSubiendo] = useState(false);
+  const [todasResenas, setTodasResenas] = useState([]);
+
+  const cargarResenas = async () => setTodasResenas(await almacen.listarResenas());
+  useEffect(() => { cargarResenas(); }, []);
+
+  const cambiar = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });
+
+  const anadirFotos = async (e) => {
+    const archivos = [...e.target.files];
+    e.target.value = "";
+    if (!archivos.length) return;
+    setSubiendo(true);
+    try {
+      const nuevas = [];
+      for (const a of archivos) nuevas.push(await almacen.subirFoto(a));
+      setForm((f) => ({ ...f, fotos: [...f.fotos, ...nuevas] }));
+    } catch (err) {
+      setMensaje({ tipo: "error", texto: err.message });
+    }
+    setSubiendo(false);
+  };
+  const quitarFoto = (i) => setForm({ ...form, fotos: form.fotos.filter((_, k) => k !== i) });
+  const ponerPortada = (i) => setForm({ ...form, fotos: [form.fotos[i], ...form.fotos.filter((_, k) => k !== i)] });
+
+  const cancelar = () => { setForm(MOTO_VACIA); setEditando(null); setMensaje(null); };
+
+  const guardar = async (e) => {
+    e.preventDefault();
+    if (!form.nombre.trim() || !soloNumeros(form.precio)) {
+      return setMensaje({ tipo: "error", texto: "El nombre y el precio son obligatorios." });
+    }
+    const moto = {
+      id: editando || undefined,
+      nombre: form.nombre.trim(),
+      modelo: form.modelo.trim(),
+      km: form.km ? kilometros(soloNumeros(form.km)) : "",
+      precio: dinero(soloNumeros(form.precio)),
+      color: form.color.trim(),
+      descripcion: form.descripcion.trim(),
+      fotos: form.fotos,
+      video: form.video,
+      estado: form.estado,
+    };
+    try {
+      await almacen.guardarMoto(moto);
+      await recargar();
+      setMensaje({ tipo: "ok", texto: editando ? "Moto actualizada." : "Moto agregada al catálogo." });
+      setForm(MOTO_VACIA); setEditando(null);
+    } catch (err) {
+      setMensaje({ tipo: "error", texto: err.message });
+    }
+  };
+
+  const editar = (m) => {
+    setForm({ nombre: m.nombre, modelo: m.modelo || "", km: soloNumeros(m.km), precio: soloNumeros(m.precio), color: m.color || "",
+      descripcion: m.descripcion || "", estado: m.estado, fotos: m.fotos || [], video: m.video || "" });
+    setEditando(m.id); setMensaje(null);
+    window.scrollTo({ top: 0, behavior: "smooth" });
+  };
+  const cambiarEstado = async (m) => {
+    await almacen.guardarMoto({ ...m, estado: m.estado === "vendido" ? "disponible" : "vendido" });
+    recargar();
+  };
+  const borrar = async (m) => {
+    if (!window.confirm(`¿Eliminar "${m.nombre}" del catálogo? Esta acción no se puede deshacer.`)) return;
+    await almacen.borrarMoto(m.id);
+    recargar();
+  };
+
+  const borrarResena = async (r) => {
+    if (!window.confirm("¿Eliminar esta reseña?")) return;
+    await almacen.borrarResena(r.id); await cargarResenas(); recargar();
+  };
+  const restablecer = async () => {
+    if (!window.confirm("Se borrarán TODAS las motos y reseñas guardadas y volverán los datos de ejemplo. ¿Continuar?")) return;
+    await almacen.restablecer(); await recargar(); await cargarResenas();
+  };
+
+  const FilaResena = ({ r }) => (
+    <div className="admin-fila resena-fila">
+      <div className="admin-info">
+        <span><Estrellas valor={r.estrellas} /> <strong>{r.nombre}</strong></span>
+        <span>{r.texto}</span>
+      </div>
+      <div className="admin-botones">
+        <button type="button" className="boton chico peligro" onClick={() => borrarResena(r)}>Eliminar</button>
+      </div>
+    </div>
+  );
+
+  return (
+    <>
+      <Seccion titulo="Panel del administrador">
+        {almacen.modo === "local" && (
+          <p className="aviso prueba">Modo de prueba: lo que guardes aquí se queda solo en este navegador. Al publicar la página se conectará a una base de datos real.</p>
+        )}
+        <div className="fila-botones">
+          <button type="button" className="boton claro chico" onClick={salir}>Cerrar sesión</button>
+          <button type="button" className="boton peligro chico" onClick={restablecer}>Restablecer datos de ejemplo</button>
+        </div>
+      </Seccion>
+
+      <Seccion titulo={editando ? "Editar moto" : "Agregar moto"}>
+        <form className="formulario" onSubmit={guardar}>
+          <label>Nombre de la moto *
+            <input value={form.nombre} onChange={cambiar("nombre")} placeholder="Ej: Discover 125 roja" />
+          </label>
+          <div className="fila-form">
+            <label>Modelo (año)
+              <input inputMode="numeric" value={form.modelo} onChange={cambiar("modelo")} placeholder="Ej: 2024" />
+            </label>
+            <label>Kilometraje
+              <input inputMode="numeric" value={form.km} onChange={cambiar("km")} placeholder="Solo números, ej: 8300" />
+            </label>
+          </div>
+          <div className="fila-form">
+            <label>Precio *
+              <input inputMode="numeric" value={form.precio} onChange={cambiar("precio")} placeholder="Solo números, ej: 6200000" />
+            </label>
+            <label>Color
+              <input value={form.color} onChange={cambiar("color")} placeholder="Ej: Roja" />
+            </label>
+          </div>
+          <label>Descripción
+            <textarea rows="3" value={form.descripcion} onChange={cambiar("descripcion")}
+              placeholder="Dueños, papeles, impuestos, matrícula, estado..." />
+          </label>
+          <label>Estado
+            <select value={form.estado} onChange={cambiar("estado")}>
+              <option value="disponible">Disponible</option>
+              <option value="vendido">Vendido</option>
+            </select>
+          </label>
+          <label>Fotos (puedes elegir varias a la vez)
+            <input type="file" accept="image/*" multiple onChange={anadirFotos} />
+          </label>
+          {subiendo && <p className="nota">Procesando fotos...</p>}
+          {form.fotos.length > 0 && (
+            <div className="miniaturas">
+              {form.fotos.map((f, i) => (
+                <div className="miniatura" key={i}>
+                  <div className="caja"><Imagen archivo={f} alt={`Foto ${i + 1}`} /></div>
+                  {i === 0 ? <span className="portada">Portada</span>
+                    : <button type="button" onClick={() => ponerPortada(i)}>Hacer portada</button>}
+                  <button type="button" onClick={() => quitarFoto(i)}>Quitar</button>
+                </div>
+              ))}
+            </div>
+          )}
+          {mensaje && <p className={"aviso " + mensaje.tipo}>{mensaje.texto}</p>}
+          <div className="fila-botones">
+            <button className="boton" type="submit" disabled={subiendo}>{editando ? "Guardar cambios" : "Agregar al catálogo"}</button>
+            {editando && <button type="button" className="boton claro" onClick={cancelar}>Cancelar</button>}
+          </div>
+        </form>
+      </Seccion>
+
+      <Seccion titulo={`Motos del catálogo (${motos.length})`}>
+        {motos.length === 0 && <p className="nota">No hay motos todavía.</p>}
+        <div className="admin-lista">
+          {motos.map((m) => (
+            <div className="admin-fila" key={m.id}>
+              <div className="admin-mini"><Imagen archivo={(m.fotos || [])[0]} alt={m.nombre} /></div>
+              <div className="admin-info">
+                <strong>{m.nombre}</strong>
+                <span>{m.precio} · {m.modelo}</span>
+                <span className={"estado " + m.estado}>{m.estado === "vendido" ? "Vendido" : "Disponible"}</span>
+              </div>
+              <div className="admin-botones">
+                <button type="button" className="boton chico" onClick={() => editar(m)}>Editar</button>
+                <button type="button" className="boton chico claro" onClick={() => cambiarEstado(m)}>
+                  {m.estado === "vendido" ? "Marcar disponible" : "Marcar vendida"}
+                </button>
+                <button type="button" className="boton chico peligro" onClick={() => borrar(m)}>Eliminar</button>
+              </div>
+            </div>
+          ))}
+        </div>
+      </Seccion>
+
+      <Seccion titulo={`Reseñas de clientes (${todasResenas.length})`}>
+        <p className="nota">Las reseñas se publican solas. Desde aquí puedes eliminar las que no quieras mostrar.</p>
+        {todasResenas.length === 0 ? <p className="nota">Todavía no hay reseñas.</p>
+          : <div className="admin-lista">{todasResenas.map((r) => <FilaResena key={r.id} r={r} />)}</div>}
+      </Seccion>
+    </>
+  );
+}
 /* ======== PORTADA ======== */
 const SERVICIOS = [
   { titulo: "Compra tu moto", texto: "Motos revisadas y con papeles listos para el traspaso.", a: "motos" },
@@ -523,11 +922,14 @@ const PASOS = [
 ];
 
 function Inicio() {
-  const disponibles = vehiculos.filter((v) => v.estado !== "vendido");
+  const { motos } = useContext(Datos);
+  const disponibles = motos.filter((v) => v.estado !== "vendido");
   const destacada = disponibles[0];
 
   return (
+    
     <>
+    
       {/* ===== PORTADA ===== */}
       <section className="hero">
         <div className="hero-texto">
@@ -620,6 +1022,7 @@ function Inicio() {
 const PAGINAS = {
   inicio: Inicio, motos: Motos, confianza: Confianza, vender: Vender, tramites: Tramites,
   prestamos: Prestamos, otros: Otros, quienes: Quienes, contacto: Contacto,
+  admin: Admin,          // oculta: no está en el menú, se entra escribiendo #/admin
 };
 
 const rutaActual = () => {
@@ -629,7 +1032,15 @@ const rutaActual = () => {
 
 export default function App() {
   const [ruta, setRuta] = useState(rutaActual);
+  const [datos, setDatos] = useState({ motos: [], resenas: [], cargado: false });
   useScrollVars();
+
+  // Trae motos y reseñas del almacén. Se vuelve a llamar cada vez que algo cambia.
+  const recargar = async () => {
+    const [motos, resenas] = await Promise.all([almacen.listarMotos(), almacen.listarResenas()]);
+    setDatos({ motos, resenas, cargado: true });
+  };
+  useEffect(() => { recargar(); }, []);
 
   useEffect(() => {
     const cambio = () => { setRuta(rutaActual()); window.scrollTo(0, 0); };
@@ -639,16 +1050,16 @@ export default function App() {
 
   const Pagina = PAGINAS[ruta];
   return (
-    <>
+    <Datos.Provider value={{ motos: datos.motos, resenas: datos.resenas, recargar }}>
       <Cursor />
       <Cabecera ruta={ruta} />
       {/* key={ruta}: al cambiar de pantalla se repite la animación de entrada */}
       <main key={ruta} className={"pagina" + (ruta === "inicio" ? " es-inicio" : "")}>
         {ruta !== "inicio" && <a className="volver" href="#/inicio">← Volver al inicio</a>}
-        <Pagina />
+        {datos.cargado ? <Pagina /> : <p className="nota">Cargando...</p>}
       </main>
       <Pie />
       <BarraContacto />
-    </>
+    </Datos.Provider>
   );
 }
