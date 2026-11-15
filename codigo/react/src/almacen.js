@@ -14,6 +14,7 @@ import { vehiculos as motosIniciales, CLAVE_ADMIN_LOCAL } from "./datos.js";
 const K_MOTOS = "nca_motos_v1";
 const K_RESENAS = "nca_resenas_v1";
 const K_SESION = "nca_sesion_admin";
+const K_CLAVE = "nca_clave_admin";
 
 const leer = (clave, defecto) => {
   try { const t = localStorage.getItem(clave); return t ? JSON.parse(t) : defecto; } catch { return defecto; }
@@ -33,6 +34,9 @@ function motos() {
   return lista;
 }
 const resenas = () => leer(K_RESENAS, []);
+
+// La clave vigente: la que el dueño guardó o, si nunca la cambió, la inicial de datos.js.
+const claveVigente = () => leer(K_CLAVE, null) || CLAVE_ADMIN_LOCAL;
 
 // Reduce la foto (máx. 1280 px) para que ocupe poco espacio.
 function comprimir(archivo, lado = 1280, calidad = 0.82) {
@@ -70,21 +74,25 @@ export const almacen = {
 
   /* ---- Reseñas: se publican al instante; el administrador puede eliminarlas ---- */
   async listarResenas() { return resenas(); },
-  async crearResena({ nombre, estrellas, texto }) {
+  async crearResena({ nombre, tipo, estrellas, texto, fotos = [] }) {
     const lista = resenas();
-    lista.unshift({ id: "r-" + Date.now(), nombre, estrellas, texto, fecha: new Date().toISOString() });
+    lista.unshift({ id: "r-" + Date.now(), nombre, tipo, estrellas, texto, fotos, fecha: new Date().toISOString() });
     escribir(K_RESENAS, lista);
   },
   async borrarResena(id) { escribir(K_RESENAS, resenas().filter((r) => r.id !== id)); },
 
   /* ---- Administrador ---- */
   async iniciarSesion(clave) {
-    if (clave !== CLAVE_ADMIN_LOCAL) throw new Error("Clave incorrecta.");
+    if (clave !== claveVigente()) throw new Error("Clave incorrecta.");
     sessionStorage.setItem(K_SESION, "1");
+  },
+  async cambiarClave(actual, nueva) {
+    if (actual !== claveVigente()) throw new Error("La clave actual no es correcta.");
+    escribir(K_CLAVE, nueva);
   },
   cerrarSesion() { sessionStorage.removeItem(K_SESION); },
   haySesion() { return sessionStorage.getItem(K_SESION) === "1"; },
 
-  /* Borra todo lo guardado y vuelve a los datos de ejemplo. */
+  /* Borra motos y reseñas y vuelve a los datos de ejemplo (no toca la clave). */
   async restablecer() { localStorage.removeItem(K_MOTOS); localStorage.removeItem(K_RESENAS); },
 };
