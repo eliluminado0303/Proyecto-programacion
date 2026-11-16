@@ -834,9 +834,9 @@ function Ingreso({ entrar }) {
   return (
     <Seccion titulo="Administrador">
       <p>Esta zona es solo para el dueño del negocio.</p>
-      <form className="formulario" onSubmit={enviar}>
+      <form className="formulario" onSubmit={enviar} autoComplete="off">
         <label>Clave de administrador
-          <input type="password" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete="current-password" />
+          <input type="password" value={clave} onChange={(e) => setClave(e.target.value)} autoComplete="new-password" />
         </label>
         {error && <p className="aviso error">{error}</p>}
         <div className="fila-botones"><button className="boton" type="submit">Entrar</button></div>
@@ -853,7 +853,7 @@ function CambiarClave() {
 
   const enviar = async (e) => {
     e.preventDefault();
-    if (nueva.length < 6) return setAviso({ tipo: "error", texto: "La clave nueva debe tener al menos 6 caracteres." });
+    if (nueva.length < 10) return setAviso({ tipo: "error", texto: "La clave nueva debe tener al menos 10 caracteres." });
     if (nueva !== repetir) return setAviso({ tipo: "error", texto: "Las dos claves nuevas no son iguales." });
     try {
       await almacen.cambiarClave(actual, nueva);
@@ -866,9 +866,9 @@ function CambiarClave() {
 
   return (
     <Seccion titulo="Cambiar la clave del administrador">
-      <form className="formulario" onSubmit={enviar}>
+      <form className="formulario" onSubmit={enviar} autoComplete="off">
         <label>Clave actual
-          <input type="password" value={actual} onChange={(e) => setActual(e.target.value)} autoComplete="current-password" />
+          <input type="password" value={actual} onChange={(e) => setActual(e.target.value)} autoComplete="new-password" />
         </label>
         <div className="fila-form">
           <label>Clave nueva
@@ -988,7 +988,9 @@ function Panel({ salir }) {
         )}
         <div className="fila-botones">
           <button type="button" className="boton claro chico" onClick={salir}>Cerrar sesión</button>
-          <button type="button" className="boton peligro chico" onClick={restablecer}>Restablecer datos de ejemplo</button>
+          {almacen.modo === "local" && (
+            <button type="button" className="boton peligro chico" onClick={restablecer}>Restablecer datos de ejemplo</button>
+          )}
         </div>
       </Seccion>
 
@@ -1196,13 +1198,17 @@ const rutaActual = () => {
 
 export default function App() {
   const [ruta, setRuta] = useState(rutaActual);
-  const [datos, setDatos] = useState({ motos: [], resenas: [], cargado: false });
+  const [datos, setDatos] = useState({ motos: [], resenas: [], cargado: false, error: false });
   useScrollVars();
 
   // Trae motos y reseñas del almacén. Se vuelve a llamar cada vez que algo cambia.
   const recargar = async () => {
-    const [motos, resenas] = await Promise.all([almacen.listarMotos(), almacen.listarResenas()]);
-    setDatos({ motos, resenas, cargado: true });
+    try {
+      const [motos, resenas] = await Promise.all([almacen.listarMotos(), almacen.listarResenas()]);
+      setDatos({ motos, resenas, cargado: true, error: false });
+    } catch {
+      setDatos((d) => ({ ...d, cargado: true, error: true }));   // sin internet o sin cupo en el servidor
+    }
   };
   useEffect(() => { recargar(); }, []);
 
@@ -1220,6 +1226,12 @@ export default function App() {
       {/* key={ruta}: al cambiar de pantalla se repite la animación de entrada */}
       <main key={ruta} className={"pagina" + (ruta === "inicio" ? " es-inicio" : "")}>
         {ruta !== "inicio" && <a className="volver" href="#/inicio">← Volver al inicio</a>}
+        {datos.error && (
+          <p className="aviso error">
+            No pudimos cargar el catálogo en este momento. Escríbenos por{" "}
+            <a href={linkWhatsApp("Hola, quiero información")} target="_blank" rel="noreferrer">WhatsApp</a> y te atendemos.
+          </p>
+        )}
         {datos.cargado ? <Pagina /> : <p className="nota">Cargando...</p>}
       </main>
       <Pie />
