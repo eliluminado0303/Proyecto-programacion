@@ -402,6 +402,22 @@ body.cursor-propio, body.cursor-propio a, body.cursor-propio button, body.cursor
 }
 @media (max-width: 600px) {
   .barra-horario { display: none; }
+  /* Portada en celular: logo al lado del nombre (como en el computador), lema abajo y luego los botones */
+  .hero {
+    grid-template-columns: auto minmax(0, 1fr); gap: 16px 14px; align-items: center; justify-items: center;
+    grid-template-areas: "pildora pildora" "logo placa" "lema lema" "botones botones";
+    padding-top: 40px;                                   /* aire para que la cinta de la carretera no tape la píldora */
+  }
+  .hero-texto { display: contents; }                     /* sus hijos pasan a ser parte de la cuadrícula de .hero */
+  .hero-texto > .pildora { grid-area: pildora; }
+  .hero-texto > .placa { grid-area: placa; width: 100%; }
+  .hero-texto > .hero-lema { grid-area: lema; }
+  .hero-texto > .hero-botones { grid-area: botones; }
+  .hero-logo { grid-area: logo; width: clamp(84px, 26vw, 120px); }
+  .hero-logo img { border-width: 3px; box-shadow: 0 0 0 5px rgba(226, 169, 45, .16), 0 10px 24px rgba(0, 0, 0, .45); }
+  .placa-lg { padding: 10px 12px 8px; }
+  .placa-lg .placa-pais { font-size: .6rem; letter-spacing: .4em; }
+  .placa-lg .placa-texto { font-size: clamp(1.2rem, 6.3vw, 1.9rem); letter-spacing: .05em; }
   .marca { gap: 8px; }
   .logo { width: 38px; height: 38px; }
   .placa-sm .placa-texto { font-size: .9rem; letter-spacing: .08em; }
