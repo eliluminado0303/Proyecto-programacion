@@ -49,9 +49,12 @@ export const tramites = [
   { titulo: "Inscripción de prenda", texto: "Trámite para inscribir una prenda sobre la moto.", documentos: DOCS_NOTARIA },
 ];
 
-export const otrosServicios = [
+/* Formas de pago que se muestran en la pantalla "Financiación y pagos" */
+export const metodosPago = [
   { titulo: "Financiación", texto: "Opción de crédito para tu moto." },
-  { titulo: "Métodos de pago", texto: "Efectivo y transferencia." },
+  { titulo: "Nequi", texto: "Pago desde tu cuenta Nequi." },
+  { titulo: "Davivienda", texto: "Pago con Davivienda." },
+  { titulo: "Transferencia bancaria", texto: "Pago por transferencia a nuestra cuenta." },
 ];
 
 export const redes = [
@@ -60,7 +63,34 @@ export const redes = [
   { texto: "WhatsApp", detalle: TELEFONO_VISIBLE, url: `https://wa.me/${TELEFONO}` },
 ];
 
+/* Pantalla "¿Quiénes somos?". Son textos sugeridos: ajústalos con el cliente. */
+export const quienesSomos = {
+  intro: [
+    "Somos una empresa dedicada a la compraventa de motos y contamos con servicio de financiamientos, trámites y préstamos.",
+    "Por ahora nos encuentras a través de redes sociales.",
+  ],
+  mision: "Acompañar a las personas en la compra, venta y trámite de su moto de forma clara y segura, con información honesta sobre el estado y los papeles de cada vehículo.",
+  vision: "Ser un negocio de motos en el que la gente confíe por su buen trato y su cumplimiento, y crecer poco a poco junto a nuestros clientes.",
+  objetivo: "Que cada cliente salga con su moto o su trámite resuelto, con los papeles en regla y sin sorpresas.",
+  valores: [
+    { titulo: "Honestidad", texto: "Contamos el estado real de cada moto y de sus papeles." },
+    { titulo: "Transparencia", texto: "Los precios y las condiciones se hablan claros desde el principio." },
+    { titulo: "Cumplimiento", texto: "Hacemos lo que acordamos, en el tiempo que acordamos." },
+    { titulo: "Cercanía", texto: "Te atendemos por WhatsApp y resolvemos tus dudas sin rodeos." },
+  ],
+};
 
-/* Clave del panel de administrador. SOLO sirve en el modo de prueba local; cámbiala.
-   Al publicar la página se reemplaza por un inicio de sesión real. */
+/* Qué puede reseñar un cliente. fotoObligatoria: true = no se puede publicar sin al menos una foto. */
+export const TIPOS_RESENA = [
+  { id: "compra", nombre: "Compra de una moto", fotoObligatoria: true },
+  { id: "venta", nombre: "Venta de mi moto", fotoObligatoria: false },
+  { id: "tramites", nombre: "Trámites", fotoObligatoria: false },
+  { id: "prestamo", nombre: "Préstamo con prenda", fotoObligatoria: false },
+  { id: "financiacion", nombre: "Financiación", fotoObligatoria: false },
+  { id: "otro", nombre: "Otro", fotoObligatoria: false },
+];
+export const MAX_FOTOS_RESENA = 3;
+
+/* Clave INICIAL del panel de administrador. El dueño puede cambiarla desde el propio panel.
+   SOLO sirve en el modo de prueba local; al publicar se reemplaza por un inicio de sesión real. */
 export const CLAVE_ADMIN_LOCAL = "alejo2026";

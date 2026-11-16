@@ -1,7 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { almacen } from "./almacen.js";
-import { NEGOCIO, TELEFONO, TELEFONO_VISIBLE, CORREO, HORARIO, LOGO, entregas, plantillas, DATOS_TRAMITE, tramites, otrosServicios, redes } from "./datos.js";
+import { NEGOCIO, TELEFONO, TELEFONO_VISIBLE, CORREO, HORARIO, LOGO, entregas, plantillas, DATOS_TRAMITE, tramites, metodosPago, quienesSomos, TIPOS_RESENA, MAX_FOTOS_RESENA, redes } from "./datos.js";
 /* ======== HOOKS ======== */
 /* Guarda el scroll en variables CSS (--scroll en px y --progreso de 0 a 1).
    Con eso el CSS mueve la moto del encabezado, gira sus ruedas y hace el parallax. */
@@ -345,13 +345,17 @@ function Cabecera({ ruta }) {
     </div>
   );
 
+  const esInicio = ruta === "inicio";
   return (
-    <header className="cabecera">
+    <header className={"cabecera" + (esInicio ? " sin-marca" : "")}>
       <div className="barra">
-        <a className="marca" href="#/inicio" aria-label="Ir al inicio">
-          <img className="logo" src={urlArchivo(LOGO)} alt="Logo de Negocios con Alejo" width="46" height="46" />
-          <Placa tamano="sm" />
-        </a>
+        {/* En la portada el logo y el nombre ya salen en grande, así que aquí solo se muestran en las demás pantallas */}
+        {!esInicio && (
+          <a className="marca" href="#/inicio" aria-label="Ir al inicio">
+            <img className="logo" src={urlArchivo(LOGO)} alt="Logo de Negocios con Alejo" width="46" height="46" />
+            <Placa tamano="sm" />
+          </a>
+        )}
 
         <button className={"hamburguesa" + (movil ? " abierta" : "")} type="button" aria-label="Abrir menú"
           aria-expanded={movil} aria-controls="menu" onClick={() => setMovil(!movil)}>
@@ -371,7 +375,6 @@ function Cabecera({ ruta }) {
             <Enlace a="otros">Financiación y pagos</Enlace>
           </Desplegable>
           <Enlace a="quienes">¿Quiénes somos?</Enlace>
-          <Enlace a="contacto">Contacto y redes</Enlace>
         </nav>
       </div>
 
@@ -382,27 +385,83 @@ function Cabecera({ ruta }) {
     </header>
   );
 }
-
 /* ======== PIE DE PÁGINA Y BARRA DE CONTACTO ======== */
+/* Íconos sencillos de cada red (dibujos SVG). "nombre" debe coincidir con el texto de la red en datos.js */
+function IconoRed({ nombre }) {
+  const dibujos = {
+    Instagram: (
+      <>
+        <rect x="3" y="3" width="18" height="18" rx="5" />
+        <circle cx="12" cy="12" r="4" />
+        <circle cx="17.3" cy="6.7" r="1" fill="currentColor" stroke="none" />
+      </>
+    ),
+    TikTok: <path d="M15 3v9.5a4 4 0 1 1-4-4M15 3c.4 2.6 2.1 4.2 5 4.5" />,
+    WhatsApp: (
+      <>
+        <path d="M3.5 20.5l1.4-4.3A8.5 8.5 0 1 1 8 19.3l-4.5 1.2z" />
+        <path d="M9 8.5c.2 3 2.6 5.8 6 6.5l1.2-1.4-2-1-.9.9c-1-.4-2-1.4-2.4-2.4l.9-.9-1-2L9 8.5z" />
+      </>
+    ),
+  };
+  return (
+    <svg className="icono-red" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="1.8"
+      strokeLinecap="round" strokeLinejoin="round" aria-hidden="true">
+      {dibujos[nombre]}
+    </svg>
+  );
+}
+
+/* Pie de página: aquí vive toda la información de contacto (ya no hay pantalla de contacto aparte) */
 function Pie() {
   return (
     <footer className="pie">
       <div className="pie-cols">
-        <div>
-          <strong className="pie-marca">{NEGOCIO}</strong>
+        <div className="pie-bloque">
+          <Placa tamano="sm" />
           <p>Compra y venta de motos, trámites, financiación y préstamos con prenda.</p>
         </div>
-        <div>
-          <strong>Contacto</strong>
-          <p>{TELEFONO_VISIBLE}<br /><a href={`mailto:${CORREO}`}>{CORREO}</a><br />Horario: {HORARIO}</p>
+
+        <div className="pie-bloque">
+          <h4>Contacto</h4>
+          <ul className="pie-lista">
+            <li><span>Teléfono y WhatsApp</span><a href={`tel:+${TELEFONO}`}>{TELEFONO_VISIBLE}</a></li>
+            <li><span>Correo</span><a href={`mailto:${CORREO}`}>{CORREO}</a></li>
+            <li><span>Horario de atención</span><b>{HORARIO}</b></li>
+          </ul>
         </div>
-        <div>
-          <strong>Redes</strong>
-          <p>{redes.map((r) => <a key={r.texto} href={r.url} target="_blank" rel="noreferrer">{r.texto}<br /></a>)}</p>
+
+        <div className="pie-bloque">
+          <h4>Nuestras redes</h4>
+          <ul className="pie-redes">
+            {redes.map((r) => (
+              <li key={r.texto}>
+                <a href={r.url} target="_blank" rel="noreferrer">
+                  <IconoRed nombre={r.texto} />
+                  <span><strong>{r.texto}</strong><small>{r.detalle}</small></span>
+                </a>
+              </li>
+            ))}
+          </ul>
         </div>
       </div>
-      <p className="pie-copy">© 2026 {NEGOCIO}.</p>
+      <p className="pie-copy">© 2026 {NEGOCIO}</p>
     </footer>
+  );
+}
+/* Versión compacta de una moto para la portada: foto pequeña, nombre y precio. El detalle completo está en el catálogo. */
+function TarjetaMini({ v }) {
+  return (
+    <a className="mini" href="#/motos">
+      <div className="mini-foto"><Imagen archivo={(v.fotos || [])[0]} alt={v.nombre} /></div>
+      <div className="mini-info">
+        <span className={"estado " + v.estado}>{v.estado === "vendido" ? "Vendido" : "Disponible"}</span>
+        <h3>{v.nombre}</h3>
+        <p className="mini-datos">{[v.modelo, v.km, v.color].filter(Boolean).join(" · ")}</p>
+        <p className="precio">{v.precio}</p>
+        <span className="mini-ver">Ver en el catálogo →</span>
+      </div>
+    </a>
   );
 }
 
@@ -494,20 +553,43 @@ function SelectorEstrellas({ valor, onChange }) {
 
 function FormularioResena({ alEnviar }) {
   const [nombre, setNombre] = useState("");
+  const [tipo, setTipo] = useState("");              // id de lo que se reseña (ver TIPOS_RESENA en datos.js)
   const [estrellas, setEstrellas] = useState(0);
   const [texto, setTexto] = useState("");
+  const [fotos, setFotos] = useState([]);            // fotos en forma de texto (ya reducidas)
   const [aviso, setAviso] = useState(null);
   const [enviando, setEnviando] = useState(false);
+  const tipoElegido = TIPOS_RESENA.find((t) => t.id === tipo);
+  const fotoObligatoria = !!tipoElegido?.fotoObligatoria;
+
+  const anadirFotos = async (e) => {
+    const archivos = [...e.target.files].slice(0, MAX_FOTOS_RESENA - fotos.length);
+    e.target.value = "";
+    if (!archivos.length) return;
+    try {
+      const nuevas = [];
+      for (const a of archivos) nuevas.push(await almacen.subirFoto(a));
+      setFotos((f) => [...f, ...nuevas]);
+      setAviso(null);
+    } catch (err) {
+      setAviso({ tipo: "error", texto: err.message });
+    }
+  };
+  const quitarFoto = (i) => setFotos(fotos.filter((_, k) => k !== i));
 
   const enviar = async (e) => {
     e.preventDefault();
     if (nombre.trim().length < 2) return setAviso({ tipo: "error", texto: "Escribe tu nombre." });
+    if (!tipoElegido) return setAviso({ tipo: "error", texto: "Elige qué vas a reseñar." });
     if (!estrellas) return setAviso({ tipo: "error", texto: "Elige una calificación de 1 a 5 estrellas." });
     if (texto.trim().length < 10) return setAviso({ tipo: "error", texto: "Cuéntanos un poco más (mínimo 10 letras)." });
+    if (fotoObligatoria && fotos.length === 0) {
+      return setAviso({ tipo: "error", texto: "Para reseñar la compra de una moto necesitas subir al menos una foto." });
+    }
     setEnviando(true);
     try {
-      await almacen.crearResena({ nombre: nombre.trim(), estrellas, texto: texto.trim() });
-      setNombre(""); setEstrellas(0); setTexto("");
+      await almacen.crearResena({ nombre: nombre.trim(), tipo: tipoElegido.nombre, estrellas, texto: texto.trim(), fotos });
+      setNombre(""); setTipo(""); setEstrellas(0); setTexto(""); setFotos([]);
       setAviso({ tipo: "ok", texto: "¡Gracias por dejar tu reseña!" });
       alEnviar();
     } catch (err) {
@@ -518,9 +600,17 @@ function FormularioResena({ alEnviar }) {
 
   return (
     <form className="formulario panel-resena" onSubmit={enviar}>
-      <label>Tu nombre
-        <input value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={40} placeholder="Ej: Carlos" />
-      </label>
+      <div className="fila-form">
+        <label>Tu nombre
+          <input value={nombre} onChange={(e) => setNombre(e.target.value)} maxLength={40} placeholder="Ej: Carlos" />
+        </label>
+        <label>¿Qué vas a reseñar?
+          <select value={tipo} onChange={(e) => setTipo(e.target.value)}>
+            <option value="">Elige una opción</option>
+            {TIPOS_RESENA.map((t) => <option key={t.id} value={t.id}>{t.nombre}</option>)}
+          </select>
+        </label>
+      </div>
       <div>
         <span className="etiqueta">Tu calificación</span>
         <SelectorEstrellas valor={estrellas} onChange={setEstrellas} />
@@ -529,6 +619,28 @@ function FormularioResena({ alEnviar }) {
         <textarea rows="4" value={texto} onChange={(e) => setTexto(e.target.value)} maxLength={500}
           placeholder="Cuéntanos cómo fue tu experiencia" />
       </label>
+      <div>
+        <span className="etiqueta">
+          {fotoObligatoria ? "Foto de tu moto (obligatoria)" : "Fotos (opcional)"}
+        </span>
+        {fotos.length < MAX_FOTOS_RESENA && (
+          <label className="subir">
+            <span className="boton claro chico">Elegir fotos</span>
+            <small>Hasta {MAX_FOTOS_RESENA} fotos</small>
+            <input type="file" accept="image/*" multiple onChange={anadirFotos} />
+          </label>
+        )}
+        {fotos.length > 0 && (
+          <div className="miniaturas">
+            {fotos.map((f, i) => (
+              <div className="miniatura" key={i}>
+                <div className="caja"><Imagen archivo={f} alt={`Foto ${i + 1}`} /></div>
+                <button type="button" onClick={() => quitarFoto(i)}>Quitar</button>
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
       {aviso && <p className={"aviso " + aviso.tipo}>{aviso.texto}</p>}
       <div className="fila-botones">
         <button className="boton" type="submit" disabled={enviando}>{enviando ? "Enviando..." : "Publicar reseña"}</button>
@@ -562,8 +674,12 @@ function Confianza() {
   ];
   const tarjetasResenas = resenas.map((r) => (
     <article className="tarjeta resena-tarjeta" key={r.id}>
+      {r.fotos && r.fotos.length > 0 && <Media item={{ fotos: r.fotos, nombre: `Foto de ${r.nombre}` }} />}
       <div className="tarjeta-cuerpo">
-        <Estrellas valor={r.estrellas} />
+        <div className="resena-cabecera">
+          <Estrellas valor={r.estrellas} />
+          {r.tipo && <span className="pildora chica">{r.tipo}</span>}
+        </div>
         <p className="resena">“{r.texto}”</p>
         <strong>{r.nombre}</strong>
         <span className="nota">{new Date(r.fecha).toLocaleDateString("es-CO", { day: "numeric", month: "long", year: "numeric" })}</span>
@@ -593,6 +709,7 @@ function Confianza() {
     </Seccion>
   );
 }
+
 /* ======== PANTALLAS: SERVICIOS ======== */
 function Vender() {
   return (
@@ -642,10 +759,11 @@ function Prestamos() {
 function Otros() {
   return (
     <Seccion titulo="Financiación y pagos">
-      <div className="tarjetas">
-        {otrosServicios.map((s) => (
-          <article className="tarjeta" key={s.titulo}>
-            <div className="tarjeta-cuerpo"><h3>{s.titulo}</h3><p>{s.texto}</p></div>
+      <p>Estas son las formas de pago que manejamos. Si te interesa financiar tu moto, escríbenos y te contamos las condiciones.</p>
+      <div className="tarjetas tarjetas-chicas">
+        {metodosPago.map((m) => (
+          <article className="tarjeta" key={m.titulo}>
+            <div className="tarjeta-cuerpo"><h3>{m.titulo}</h3><p>{m.texto}</p></div>
           </article>
         ))}
       </div>
@@ -653,16 +771,31 @@ function Otros() {
   );
 }
 
-/* ======== PANTALLAS: INFORMACIÓN ======== */
 function Quienes() {
+  const { intro, mision, vision, objetivo, valores } = quienesSomos;
   return (
-    <Seccion titulo="¿Quiénes somos?">
-      <p>Somos una empresa dedicada a la compraventa de motos y contamos con servicio de financiamientos, trámites y préstamos.</p>
-      <p>Por ahora nos encuentras a través de redes sociales.</p>
-    </Seccion>
+    <>
+      <Seccion titulo="¿Quiénes somos?">
+        {intro.map((t) => <p key={t}>{t}</p>)}
+        <div className="tarjetas tarjetas-chicas">
+          {[["Misión", mision], ["Visión", vision], ["Objetivo", objetivo]].map(([titulo, texto]) => (
+            <article className="tarjeta" key={titulo}>
+              <div className="tarjeta-cuerpo"><span className="pildora chica">{titulo}</span><p>{texto}</p></div>
+            </article>
+          ))}
+        </div>
+      </Seccion>
+
+      <Seccion titulo="Nuestros valores">
+        <div className="valores">
+          {valores.map((v) => (
+            <div className="valor" key={v.titulo}><h3>{v.titulo}</h3><p>{v.texto}</p></div>
+          ))}
+        </div>
+      </Seccion>
+    </>
   );
 }
-
 function Contacto() {
   return (
     <Seccion titulo="Contacto y redes">
@@ -711,7 +844,46 @@ function Ingreso({ entrar }) {
     </Seccion>
   );
 }
+/* Formulario para que el dueño cambie la clave del panel */
+function CambiarClave() {
+  const [actual, setActual] = useState("");
+  const [nueva, setNueva] = useState("");
+  const [repetir, setRepetir] = useState("");
+  const [aviso, setAviso] = useState(null);
 
+  const enviar = async (e) => {
+    e.preventDefault();
+    if (nueva.length < 6) return setAviso({ tipo: "error", texto: "La clave nueva debe tener al menos 6 caracteres." });
+    if (nueva !== repetir) return setAviso({ tipo: "error", texto: "Las dos claves nuevas no son iguales." });
+    try {
+      await almacen.cambiarClave(actual, nueva);
+      setActual(""); setNueva(""); setRepetir("");
+      setAviso({ tipo: "ok", texto: "Clave actualizada. Úsala la próxima vez que entres." });
+    } catch (err) {
+      setAviso({ tipo: "error", texto: err.message });
+    }
+  };
+
+  return (
+    <Seccion titulo="Cambiar la clave del administrador">
+      <form className="formulario" onSubmit={enviar}>
+        <label>Clave actual
+          <input type="password" value={actual} onChange={(e) => setActual(e.target.value)} autoComplete="current-password" />
+        </label>
+        <div className="fila-form">
+          <label>Clave nueva
+            <input type="password" value={nueva} onChange={(e) => setNueva(e.target.value)} autoComplete="new-password" />
+          </label>
+          <label>Repite la clave nueva
+            <input type="password" value={repetir} onChange={(e) => setRepetir(e.target.value)} autoComplete="new-password" />
+          </label>
+        </div>
+        {aviso && <p className={"aviso " + aviso.tipo}>{aviso.texto}</p>}
+        <div className="fila-botones"><button className="boton" type="submit">Guardar clave</button></div>
+      </form>
+    </Seccion>
+  );
+}
 function Panel({ salir }) {
   const { motos, recargar } = useContext(Datos);
   const [form, setForm] = useState(MOTO_VACIA);
@@ -903,6 +1075,7 @@ function Panel({ salir }) {
         {todasResenas.length === 0 ? <p className="nota">Todavía no hay reseñas.</p>
           : <div className="admin-lista">{todasResenas.map((r) => <FilaResena key={r.id} r={r} />)}</div>}
       </Seccion>
+      <CambiarClave />
     </>
   );
 }
@@ -912,7 +1085,7 @@ const SERVICIOS = [
   { titulo: "Vende tu moto", texto: "Nosotros la ofrecemos y negociamos por ti.", a: "vender" },
   { titulo: "Trámites", texto: "Traspaso, duplicado de placas, cambio de color y prendas.", a: "tramites" },
   { titulo: "Préstamos con prenda", texto: "Dinero rápido dejando un artículo en garantía.", a: "prestamos" },
-  { titulo: "Financiación y pagos", texto: "Opciones de crédito, efectivo o transferencia.", a: "otros" },
+  { titulo: "Financiación y pagos", texto: "Financiación, Nequi, Davivienda y transferencia bancaria.", a: "otros" },
 ];
 
 const PASOS = [
@@ -924,16 +1097,13 @@ const PASOS = [
 function Inicio() {
   const { motos } = useContext(Datos);
   const disponibles = motos.filter((v) => v.estado !== "vendido");
-  const destacada = disponibles[0];
 
   return (
-    
     <>
-    
-      {/* ===== PORTADA ===== */}
+      {/* ===== PORTADA: nombre con forma de placa + logo en grande ===== */}
       <section className="hero">
         <div className="hero-texto">
-          <p className="hero-sobre">Compra y venta de motos</p>
+          <span className="pildora">Compra y venta de motos</span>
           <Placa tamano="lg" como="h1" />
           <p className="hero-lema">Somos unos locos tratando de comernos al mundo</p>
           <div className="hero-botones">
@@ -941,13 +1111,11 @@ function Inicio() {
             <BotonWA texto="Quiero vender mi moto" mensaje={mensajeDe(...plantillas.vender)} variante="claro" />
           </div>
         </div>
-        {destacada && (
-          <div className="hero-moto" data-cursor>
-            <div className="hero-halo" />
-            <div className="hero-foto"><Imagen archivo={destacada.fotos[0]} alt={destacada.nombre} /></div>
-            <span className="hero-etiqueta">{destacada.nombre} · {destacada.precio}</span>
-          </div>
-        )}
+        <div className="hero-logo">
+          <div className="hero-halo" />
+          {/* Por ahora el logo es la foto de LOGO en datos.js; cuando haya un logo real, se cambia ese archivo */}
+          <img src={urlArchivo(LOGO)} alt="Logo de Negocios con Alejo" />
+        </div>
       </section>
 
       {/* ===== CINTA QUE SE MUEVE ===== */}
@@ -959,24 +1127,18 @@ function Inicio() {
         </div>
       </div>
 
-      {/* ===== CIFRAS ===== */}
-      <div className="cifras">
-        <div><strong><Contador valor={disponibles.length} /></strong><span>motos disponibles</span></div>
-        <div><strong><Contador valor={tramites.length} /></strong><span>trámites que gestionamos</span></div>
-        <div><strong><Contador valor={2} /></strong><span>formas de pago</span></div>
-        <div><strong><Contador valor={100} sufijo="%" /></strong><span>atención por WhatsApp</span></div>
-      </div>
-
-      {/* ===== MOTOS DESTACADAS ===== */}
-      <Reveal>
-        <section className="bloque">
-          <h2>Motos destacadas</h2>
-          <div className="tarjetas">
-            {disponibles.slice(0, 3).map((v) => <TarjetaMoto key={v.nombre} v={v} />)}
-          </div>
-          <p className="centrado"><a className="boton claro" href="#/motos">Ver todo el catálogo</a></p>
-        </section>
-      </Reveal>
+      {/* ===== MOTOS DESTACADAS (versión compacta; el catálogo tiene el detalle) ===== */}
+      {disponibles.length > 0 && (
+        <Reveal>
+          <section className="bloque">
+            <h2>Motos destacadas</h2>
+            <div className="minis">
+              {disponibles.slice(0, 3).map((v) => <TarjetaMini key={v.id} v={v} />)}
+            </div>
+            <p className="centrado"><a className="boton claro" href="#/motos">Ver todo el catálogo</a></p>
+          </section>
+        </Reveal>
+      )}
 
       {/* ===== QUÉ HACEMOS ===== */}
       <section className="bloque">
@@ -1000,7 +1162,10 @@ function Inicio() {
         <div className="pasos">
           {PASOS.map((p, i) => (
             <Reveal key={p.n} retraso={i * 120}>
-              <div className="paso"><span className="paso-n">{p.n}</span><h3>{p.titulo}</h3><p>{p.texto}</p></div>
+              <div className="paso">
+                <span className="paso-n">{p.n}</span>
+                <div><h3>{p.titulo}</h3><p>{p.texto}</p></div>
+              </div>
             </Reveal>
           ))}
         </div>
@@ -1017,7 +1182,6 @@ function Inicio() {
     </>
   );
 }
-
 /* ======== APP (elige la pantalla según la dirección #/...) ======== */
 const PAGINAS = {
   inicio: Inicio, motos: Motos, confianza: Confianza, vender: Vender, tramites: Tramites,
