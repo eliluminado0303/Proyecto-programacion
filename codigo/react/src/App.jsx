@@ -417,8 +417,11 @@ function Pie() {
   return (
     <footer className="pie">
       <div className="pie-cols">
-        <div className="pie-bloque">
-          <Placa tamano="sm" />
+        <div className="pie-bloque pie-marca">
+          <div className="pie-marca-fila">
+            <img className="logo logo-pie" src={urlArchivo(LOGO)} alt="Logo de Negocios con Alejo" width="52" height="52" />
+            <Placa tamano="sm" />
+          </div>
           <p>Compra y venta de motos, trámites, financiación y préstamos con prenda.</p>
         </div>
 
@@ -893,7 +896,7 @@ function Panel({ salir }) {
   const [todasResenas, setTodasResenas] = useState([]);
 
   const cargarResenas = async () => setTodasResenas(await almacen.listarResenas());
-  useEffect(() => { cargarResenas(); }, []);
+  useEffect(() => { almacen.refrescar(); recargar(); cargarResenas(); }, []);   // el panel siempre arranca con datos frescos
 
   const cambiar = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });
 
@@ -1211,6 +1214,20 @@ export default function App() {
     }
   };
   useEffect(() => { recargar(); }, []);
+
+  // Al volver a la pestaña (o recuperar internet) se revisa si hubo cambios hechos desde otro dispositivo.
+  // El almacén no vuelve a pedir nada si los datos tienen menos de 2 minutos.
+  useEffect(() => {
+    const revisar = () => { if (document.visibilityState === "visible") recargar(); };
+    document.addEventListener("visibilitychange", revisar);
+    window.addEventListener("focus", revisar);
+    window.addEventListener("online", revisar);
+    return () => {
+      document.removeEventListener("visibilitychange", revisar);
+      window.removeEventListener("focus", revisar);
+      window.removeEventListener("online", revisar);
+    };
+  }, []);
 
   useEffect(() => {
     const cambio = () => { setRuta(rutaActual()); window.scrollTo(0, 0); };
