@@ -20,7 +20,7 @@ const almacenSinConexion = {
   listarMotos: sinConfigurar, guardarMoto: sinConfigurar, borrarMoto: sinConfigurar, subirFoto: sinConfigurar,
   listarResenas: sinConfigurar, crearResena: sinConfigurar, borrarResena: sinConfigurar,
   iniciarSesion: sinConfigurar, cambiarClave: sinConfigurar, restablecer: sinConfigurar,
-  cerrarSesion() {}, haySesion: () => false,
+  cerrarSesion() {}, haySesion: () => false, refrescar() {},
 };
 
 export const almacen =

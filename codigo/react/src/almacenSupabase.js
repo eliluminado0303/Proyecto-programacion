@@ -12,7 +12,7 @@
    ===================================================================== */
 import { createClient } from "@supabase/supabase-js";
 
-const CACHE_MS = 10 * 60 * 1000;          // 10 minutos: cuánto tarda un visitante en ver cambios nuevos
+const CACHE_MS = 2 * 60 * 1000;           // 2 minutos: lo máximo que tarda un visitante en ver cambios de otro dispositivo (al volver a la pestaña se revisa)
 const K_CACHE = "nca_cache_catalogo_v1";
 const K_SESION = "nca-admin-auth";        // la sesión del administrador vive solo en la pestaña (sessionStorage)
 const BUCKET = "fotos";
@@ -21,8 +21,12 @@ const BUCKET = "fotos";
 const LADO_MAX = 1000;                    // píxeles del lado más largo
 const CALIDAD = 0.72;                     // con esto cada foto queda en ~70-120 KB (el bucket acepta hasta 400 KB)
 
+/* Error con un mensaje ya escrito para el usuario (nuevoError lo deja pasar tal cual). */
+const propio = (m) => Object.assign(new Error(m), { propio: true });
+
 /* Convierte cualquier error en un mensaje claro en español. */
 function nuevoError(e) {
+  if (e && e.propio) return e;
   const msg = String((e && e.message) || "");
   const code = e && e.code;
   if (/invalid login|invalid credentials/i.test(msg)) return new Error("Clave incorrecta.");
@@ -31,7 +35,7 @@ function nuevoError(e) {
   if (/jwt|token|not authenticated/i.test(msg) || e?.status === 401) return new Error("La sesión venció. Cierra sesión y vuelve a entrar.");
   if (code === "42501" || /row-level security|violates/i.test(msg)) return new Error("No autorizado. Cierra sesión y vuelve a entrar.");
   if (/exceeded|quota|too large|payload/i.test(msg)) return new Error("Una de las fotos pesa demasiado.");
-  return new Error("No se pudo completar la acción. Detalle: "+ msg);
+  return new Error("No se pudo completar la acción. Intenta de nuevo en unos minutos.");
 }
 const ok = ({ data, error }) => { if (error) throw error; return data; };
 
@@ -64,6 +68,13 @@ export function crearAlmacenSupabase(url, llave, correoAdmin) {
       detectSessionInUrl: false,          // la página usa rutas con # y no debe confundirlas con enlaces de acceso
     },
   });
+
+  /* Antes de escribir o borrar se comprueba que la sesión del administrador sigue viva.
+     Sin sesión, Supabase NO da error: simplemente no borra nada. Por eso se avisa aquí. */
+  async function exigirSesion() {
+    const { data } = await supabase.auth.getSession();
+    if (!data || !data.session) throw propio("La sesión venció. Cierra sesión y vuelve a entrar.");
+  }
 
   /* Sube una foto (texto base64) al bucket y devuelve su dirección pública. */
   async function subirArchivo(dataUrl, carpeta) {
@@ -133,11 +144,15 @@ export function crearAlmacenSupabase(url, llave, correoAdmin) {
   return {
     modo: "supabase",
 
+    /* Descarta lo guardado en el navegador para que la próxima lectura vaya al servidor. */
+    refrescar() { invalidar(); },
+
     /* ---- Motos ---- */
     async listarMotos() { return (await catalogo()).motos; },
 
     async guardarMoto(moto) {            // sin id = moto nueva; con id = actualiza
       return accion(async () => {
+        await exigirSesion();
         const fotos = [];
         for (const f of moto.fotos || []) fotos.push(f.startsWith("data:") ? await subirArchivo(f, "motos") : f);
         const fila = {
@@ -147,7 +162,8 @@ export function crearAlmacenSupabase(url, llave, correoAdmin) {
         };
         if (moto.id) {
           const antes = ok(await supabase.from("motos").select("fotos").eq("id", moto.id).maybeSingle());
-          ok(await supabase.from("motos").update(fila).eq("id", moto.id));
+          const filas = ok(await supabase.from("motos").update(fila).eq("id", moto.id).select("id"));
+          if (!filas || filas.length === 0) throw propio("No se encontró esa moto (quizá ya la borraron desde otro dispositivo). Recarga la página.");
           await borrarArchivos((antes?.fotos || []).filter((u) => !fotos.includes(u)));   // fotos quitadas -> se liberan
         } else {
           ok(await supabase.from("motos").insert(fila));
@@ -156,6 +172,7 @@ export function crearAlmacenSupabase(url, llave, correoAdmin) {
     },
     async borrarMoto(id) {
       return accion(async () => {
+        await exigirSesion();
         const antes = ok(await supabase.from("motos").select("fotos").eq("id", id).maybeSingle());
         ok(await supabase.from("motos").delete().eq("id", id));
         await borrarArchivos(antes?.fotos);
@@ -177,6 +194,7 @@ export function crearAlmacenSupabase(url, llave, correoAdmin) {
     },
     async borrarResena(id) {
       return accion(async () => {
+        await exigirSesion();
         const antes = ok(await supabase.from("resenas").select("fotos").eq("id", id).maybeSingle());
         ok(await supabase.from("resenas").delete().eq("id", id));
         await borrarArchivos(antes?.fotos);

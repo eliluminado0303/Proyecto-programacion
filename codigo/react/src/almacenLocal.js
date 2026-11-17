@@ -58,6 +58,7 @@ function comprimir(archivo, lado = 1280, calidad = 0.82) {
 }
 
 export const almacenLocal = {
+  refrescar() {},          // en modo local no hay caché que renovar
   modo: "local",
 
   /* ---- Motos ---- */
