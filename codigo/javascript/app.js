@@ -193,7 +193,7 @@ function crearCabecera() {
 
   return el("header", { class: "cabecera", id: "inicio" },
     boton,
-    el("img", { class: "logo", src: RUTA_IMG + "mi tio xdxdxd.jpeg", alt: "Logo de " + NEGOCIO, width: "200", height: "200" }),
+    el("img", { class: "logo", src: RUTA_IMG + "simbolo-512.png", alt: "Logo de " + NEGOCIO, width: "200", height: "200" }),
     el("h1", { class: "placa", text: NEGOCIO }),
     el("p", { class: "lema", text: "Somos unos locos tratando de comernos al mundo" }),
     menu

@@ -8,7 +8,7 @@ export const TELEFONO = "573015602104";
 export const TELEFONO_VISIBLE = "+57 301 5602104";
 export const CORREO = "Battcontador@gmail.com";
 export const HORARIO = "8:00 a. m. a 10:00 p. m.";
-export const LOGO = "mi tio xdxdxd.jpeg";
+export const LOGO = "simbolo-512.png";
 
 /* MOTOS INICIALES: se cargan la primera vez. Después las motos se agregan y editan desde el panel de administrador (#/admin).
    estado: "disponible" o "vendido". fotos: con 2 o más aparecen las flechas ‹ ›.
