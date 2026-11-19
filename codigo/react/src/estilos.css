@@ -177,6 +177,7 @@ button.boton:disabled { opacity: .55; cursor: wait; }
 /* ===== 7. TARJETAS, FOTOS Y CARRUSEL ===== */
 .tarjetas { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 22px; margin: 16px 0 20px; }
 .tarjetas.tarjetas-chicas { grid-template-columns: repeat(auto-fill, minmax(240px, 1fr)); }
+.tarjetas.resenas-grid { grid-template-columns: repeat(auto-fit, minmax(min(100%, 300px), 1fr)); }
 .tarjeta {
   height: 100%; display: flex; flex-direction: column; overflow: hidden;
   background: var(--superficie-2); border: 1px solid var(--linea); border-radius: var(--radio);

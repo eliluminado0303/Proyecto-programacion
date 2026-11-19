@@ -705,7 +705,7 @@ function Confianza() {
             <Estrellas valor={promedio} tam="grande" />
             <span><strong>{promedio.toFixed(1)}</strong> de 5 · {resenas.length} {resenas.length === 1 ? "reseña" : "reseñas"}</span>
           </p>
-          <Bloque hijos={tarjetasResenas} />
+          <div className="tarjetas resenas-grid">{tarjetasResenas}</div>
         </>
       )}
 
