@@ -3,7 +3,7 @@
    Fotos y videos: escribe solo el NOMBRE del archivo; deben estar en la carpeta "imagenes".
    Si el archivo no existe, la página muestra "Foto próximamente". */
 
-export const NEGOCIO = "Negocios con Alejo";
+export const NEGOCIO = "Motos con Alejo";
 export const TELEFONO = "573015602104";
 export const TELEFONO_VISIBLE = "+57 301 5602104";
 export const CORREO = "Battcontador@gmail.com";
@@ -58,8 +58,8 @@ export const metodosPago = [
 ];
 
 export const redes = [
-  { texto: "Instagram", detalle: "Negocios con Alejo", url: "https://www.instagram.com/lasmotosdealejo?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" },
-  { texto: "TikTok", detalle: "Negocios con Alejo", url: "https://www.tiktok.com/@alejandroparizados" },
+  { texto: "Instagram", detalle: "@lasmotosdealejo", url: "https://www.instagram.com/lasmotosdealejo?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" },
+  { texto: "TikTok", detalle: "@alejandroparizados", url: "https://www.tiktok.com/@alejandroparizados" },
   { texto: "WhatsApp", detalle: TELEFONO_VISIBLE, url: `https://wa.me/${TELEFONO}` },
 ];
 
