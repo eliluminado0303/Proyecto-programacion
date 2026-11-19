@@ -374,7 +374,7 @@ body.cursor-propio, body.cursor-propio a, body.cursor-propio button, body.cursor
 .formulario input:focus, .formulario textarea:focus, .formulario select:focus { outline: 2px solid var(--apoyo); border-color: var(--apoyo); }
 .formulario input[type="file"] { padding: 10px; }
 .formulario textarea { resize: vertical; }
-.panel-resena { max-width: 680px; padding: 28px; margin-top: 16px; background: var(--superficie-2); border: 1px solid var(--linea); border-radius: 20px; box-shadow: 0 6px 18px rgba(27, 42, 58, .08); }
+.panel-resena { width: 100%; max-width: none; padding: 28px; margin-top: 16px; background: var(--superficie-2); border: 1px solid var(--linea); border-radius: 20px; box-shadow: 0 6px 18px rgba(27, 42, 58, .08); }
 .fila-form { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
 .fila-botones { display: flex; gap: 12px; flex-wrap: wrap; }
 .subir { position: relative; display: flex !important; align-items: center; gap: 12px !important; grid-auto-flow: column; padding: 14px; border: 2px dashed #B9AE96; border-radius: 14px; background: #FBF8F1; cursor: pointer; }
