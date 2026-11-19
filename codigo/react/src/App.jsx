@@ -69,28 +69,31 @@ function Placa({ tamano = "sm", como: Etiqueta = "div", texto = NEGOCIO }) {
 }
 
 /* ======== MOTO ======== */
-/* Moto dibujada en SVG. Las ruedas llevan la clase "rueda": el CSS las gira con el scroll. */
+/* Moto dibujada en SVG (vista lateral de una moto deportiva urbana, mirando a la derecha).
+   Las ruedas llevan la clase "rueda": el CSS las gira con el scroll. */
 function Moto() {
   const Rueda = ({ cx }) => (
-    <g className="rueda" style={{ transformOrigin: `${cx}px 46px` }}>
-      <circle cx={cx} cy="46" r="14" fill="none" stroke="currentColor" strokeWidth="4" />
-      <path d={`M${cx - 12} 46H${cx + 12}M${cx} 34V58M${cx - 8.5} 37.5L${cx + 8.5} 54.5M${cx + 8.5} 37.5L${cx - 8.5} 54.5`} stroke="currentColor" strokeWidth="1.5" />
+    <g className="rueda" style={{ transformOrigin: `${cx}px 55px` }}>
+      <circle cx={cx} cy="55" r="16" fill="none" stroke="currentColor" strokeWidth="4.5" />
+      <circle cx={cx} cy="55" r="9.5" fill="none" stroke="currentColor" strokeWidth="1.2" opacity=".8" />
+      <path d={`M${cx} 46V64M${cx - 9} 55H${cx + 9}M${cx - 6.4} 48.6L${cx + 6.4} 61.4M${cx + 6.4} 48.6L${cx - 6.4} 61.4`} stroke="currentColor" strokeWidth="1.2" opacity=".8" />
+      <circle cx={cx} cy="55" r="2.4" fill="currentColor" />
     </g>
   );
   return (
-    <svg className="moto" viewBox="0 0 124 64" aria-hidden="true">
-      <Rueda cx={24} />
-      <Rueda cx={98} />
-      <g fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-        <path d="M24 46L52 43" />
-        <path d="M52 43L58 29L80 27L74 41" />
-        <path d="M98 46L85 22M82 21L92 19" />
-        <path d="M54 52L30 54" />
-      </g>
-      <path d="M52 41H75L72 52H54Z" fill="currentColor" opacity=".55" />
-      <path d="M57 29C66 18 82 22 83 27L58 33Z" fill="currentColor" />
-      <path d="M30 33C32 28 40 28 44 28L58 29L57 34Z" fill="currentColor" />
-      <circle cx="91" cy="27" r="3" fill="#fff" />
+    <svg className="moto" viewBox="0 0 140 76" aria-hidden="true">
+      <Rueda cx={27} />
+      <Rueda cx={113} />
+      <path d="M100 41C106 36 118 36 126 43" fill="none" stroke="currentColor" strokeWidth="3" strokeLinecap="round" />
+      <path d="M27 55L64 52" stroke="currentColor" strokeWidth="4" strokeLinecap="round" />
+      <path d="M40 38L49 51" stroke="currentColor" strokeWidth="2.6" strokeLinecap="round" />
+      <path d="M78 60C70 63 58 62 46 60L24 58" fill="none" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" opacity=".75" />
+      <path d="M60 42H86L88 52L82 62H66L59 53Z" fill="currentColor" opacity=".6" />
+      <path d="M14 37C18 32 26 31 34 32L58 36L65 29C72 23 88 22 96 27L101 33L98 38L66 43L56 43L30 41C22 41 17 40 14 37Z" fill="currentColor" />
+      <path d="M99 30L113 55" stroke="currentColor" strokeWidth="4.2" strokeLinecap="round" />
+      <path d="M94 22L104 24" stroke="currentColor" strokeWidth="3.4" strokeLinecap="round" />
+      <path d="M100 28C106 28 109 32 107 36L101 36Z" fill="#fff" />
+      <rect x="12" y="35" width="5" height="3" rx="1.2" fill="#E5736B" />
     </svg>
   );
 }
@@ -352,7 +355,7 @@ function Cabecera({ ruta }) {
         {/* En la portada el logo y el nombre ya salen en grande, así que aquí solo se muestran en las demás pantallas */}
         {!esInicio && (
           <a className="marca" href="#/inicio" aria-label="Ir al inicio">
-            <img className="logo" src={urlArchivo(LOGO)} alt="Logo de Negocios con Alejo" width="46" height="46" />
+            <img className="logo" src={urlArchivo(LOGO)} alt={`Logo de ${NEGOCIO}`} width="46" height="46" />
             <Placa tamano="sm" />
           </a>
         )}
@@ -419,7 +422,7 @@ function Pie() {
       <div className="pie-cols">
         <div className="pie-bloque pie-marca">
           <div className="pie-marca-fila">
-            <img className="logo logo-pie" src={urlArchivo(LOGO)} alt="Logo de Negocios con Alejo" width="52" height="52" />
+            <img className="logo logo-pie" src={urlArchivo(LOGO)} alt={`Logo de ${NEGOCIO}`} width="52" height="52" />
             <Placa tamano="sm" />
           </div>
           <p>Compra y venta de motos, trámites, financiación y préstamos con prenda.</p>
@@ -1119,7 +1122,7 @@ function Inicio() {
         <div className="hero-logo">
           <div className="hero-halo" />
           {/* Por ahora el logo es la foto de LOGO en datos.js; cuando haya un logo real, se cambia ese archivo */}
-          <img src={urlArchivo(LOGO)} alt="Logo de Negocios con Alejo" />
+          <img src={urlArchivo(LOGO)} alt={`Logo de ${NEGOCIO}`} />
         </div>
       </section>
 
@@ -1136,7 +1139,7 @@ function Inicio() {
       {disponibles.length > 0 && (
         <Reveal>
           <section className="bloque">
-            <h2>Motos destacadas</h2>
+            <h2>Motos disponibles</h2>
             <div className="minis">
               {disponibles.slice(0, 3).map((v) => <TarjetaMini key={v.id} v={v} />)}
             </div>
