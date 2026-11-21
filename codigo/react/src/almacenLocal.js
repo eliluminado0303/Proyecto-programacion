@@ -92,6 +92,7 @@ export const almacenLocal = {
     escribir(K_CLAVE, nueva);
   },
   cerrarSesion() { sessionStorage.removeItem(K_SESION); },
+    async tokenSesion() { return "modo-prueba"; },
   haySesion() { return sessionStorage.getItem(K_SESION) === "1"; },
 
   /* Borra motos y reseñas y vuelve a los datos de ejemplo (no toca la clave). */
