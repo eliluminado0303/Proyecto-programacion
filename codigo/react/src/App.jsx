@@ -1,6 +1,7 @@
 import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { almacen } from "./almacen.js";
+import GeneradorVideo from "./GeneradorVideo.jsx";
 import { NEGOCIO, TELEFONO, TELEFONO_VISIBLE, CORREO, HORARIO, LOGO, entregas, plantillas, DATOS_TRAMITE, tramites, metodosPago, quienesSomos, TIPOS_RESENA, MAX_FOTOS_RESENA, redes } from "./datos.js";
 /* ======== HOOKS ======== */
 /* Guarda el scroll en variables CSS (--scroll en px y --progreso de 0 a 1).
@@ -998,6 +999,9 @@ function Panel({ salir }) {
             <button type="button" className="boton peligro chico" onClick={restablecer}>Restablecer datos de ejemplo</button>
           )}
         </div>
+      </Seccion>
+            <Seccion titulo="Generar video con IA">
+        <GeneradorVideo motos={motos} />
       </Seccion>
 
       <Seccion titulo={editando ? "Editar moto" : "Agregar moto"}>

@@ -216,6 +216,12 @@ export function crearAlmacenSupabase(url, llave, correoAdmin) {
       }
     },
     cerrarSesion() { supabase.auth.signOut().catch(() => {}); },
+    /* Token de la sesión del administrador: se le envía a n8n para que compruebe quién llama. */
+    async tokenSesion() {
+      const { data } = await supabase.auth.getSession();
+      if (!data || !data.session) throw propio("La sesión venció. Cierra sesión y vuelve a entrar.");
+      return data.session.access_token;
+    },
     haySesion() {
       try { const s = JSON.parse(window.sessionStorage.getItem(K_SESION)); return !!(s && s.access_token); }
       catch { return false; }
