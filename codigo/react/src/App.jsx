@@ -14,6 +14,7 @@ function useScrollVars() {
       const max = raiz.scrollHeight - window.innerHeight;
       raiz.style.setProperty("--scroll", window.scrollY);
       raiz.style.setProperty("--progreso", max > 0 ? Math.min(1, window.scrollY / max) : 0);
+      raiz.classList.toggle("cayo", window.scrollY > 8);   // la motico del logo cae en cuanto se empieza a hacer scroll
       pendiente = false;
     };
     const alScroll = () => {
@@ -351,12 +352,15 @@ function Cabecera({ ruta }) {
 
   const esInicio = ruta === "inicio";
   return (
-    <header className={"cabecera" + (esInicio ? " sin-marca" : "")}>
+    <header className={"cabecera" + (esInicio ? " sin-marca" : " con-aro")}>
       <div className="barra">
         {/* En la portada el logo y el nombre ya salen en grande, así que aquí solo se muestran en las demás pantallas */}
         {!esInicio && (
           <a className="marca" href="#/inicio" aria-label="Ir al inicio">
-            <img className="logo" src={urlArchivo(LOGO)} alt={`Logo de ${NEGOCIO}`} width="46" height="46" />
+            {/* Círculo del logo: la motico vive aquí y, al empezar a hacer scroll, "cae" y sigue por la carretera */}
+            <span className="logo logo-aro" role="img" aria-label={`Logo de ${NEGOCIO}`}>
+              <span className="logo-moto"><Moto /></span>
+            </span>
             <Placa tamano="sm" />
           </a>
         )}
