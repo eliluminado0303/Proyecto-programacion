@@ -1,0 +1,324 @@
+{
+  "name": "Agente Motos - Generar video (Gemini)",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "generar-video",
+        "responseMode": "responseNode",
+        "options": {
+          "allowedOrigins": "*"
+        }
+      },
+      "type": "n8n-nodes-base.webhook",
+      "typeVersion": 2,
+      "position": [
+        -640,
+        0
+      ],
+      "id": "af573410-efd9-4d77-bdc5-4f5d928820f1",
+      "name": "Webhook",
+      "webhookId": "3e711d4c-93e0-472d-8c03-1304ac3107fe"
+    },
+    {
+      "parameters": {
+        "url": "https://kuxgkrkuqufxydmlhauc.supabase.co/auth/v1/user",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_-FB8Gy5AF-rMhmI-BBKTWg_k9r2oxpW"
+            },
+            {
+              "name": "Authorization",
+              "value": "=Bearer {{ $json.body.token }}"
+            }
+          ]
+        },
+        "options": {
+          "response": {
+            "response": {
+              "neverError": true
+            }
+          }
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        -416,
+        0
+      ],
+      "id": "947a256e-3364-48f1-a30d-31da780c7184",
+      "name": "Verificar sesión"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": false,
+            "leftValue": "",
+            "typeValidation": "loose",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "4f9cfd4d-9593-4ae1-9f71-8765cdbef929",
+              "leftValue": "={{ $json.email }}",
+              "rightValue": "correo-del-administrador@ejemplo.com",
+              "operator": {
+                "type": "string",
+                "operation": "equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        -192,
+        0
+      ],
+      "id": "113a2266-eb3e-434e-8f71-ea6a3656c86e",
+      "name": "¿Es el administrador?"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "{ \"error\": \"No autorizado\" }",
+        "options": {
+          "responseCode": 401
+        }
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        32,
+        200
+      ],
+      "id": "2042f786-4e43-420a-a9af-7e7ff2090fb3",
+      "name": "Responder 401"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://kuxgkrkuqufxydmlhauc.supabase.co/rest/v1/rpc/catalogo",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "apikey",
+              "value": "sb_publishable_-FB8Gy5AF-rMhmI-BBKTWg_k9r2oxpW"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "{}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        32,
+        -100
+      ],
+      "id": "c20b9b24-9b72-4244-98c6-bf1616cb47d6",
+      "name": "Catálogo"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Datos que mandó el panel (el nodo Webhook guarda el cuerpo en .body)\nconst entrada = $(\"Webhook\").first().json.body || {};\nconst motoId = String(entrada.moto_id || \"\");\nconst instrucciones = String(entrada.instrucciones || \"\").trim().slice(0, 1000);\n\nif (!motoId) throw new Error(\"Falta moto_id.\");\n\nconst catalogo = $input.first().json;\nconst m = (catalogo.motos || []).find(x => String(x.id) === motoId);\n\nif (!m) throw new Error(\"No se encontró la moto con id \" + motoId);\n\nreturn [{\n  json: {\n    instrucciones,\n    moto: {\n      id: m.id,\n      nombre: m.nombre,\n      modelo: m.modelo,\n      km: m.km,\n      precio: m.precio,\n      color: m.color,\n      descripcion: m.descripcion,\n      fotos: m.fotos || [],\n      video: m.video || \"\"\n    }\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        256,
+        -100
+      ],
+      "id": "08741179-1777-4528-9a69-50e0e95f66a9",
+      "name": "Buscar moto"
+    },
+    {
+      "parameters": {
+        "jsCode": "// Cambia aquí el modelo si Google lo reemplaza (ver ai.google.dev/gemini-api/docs/models)\nconst MODELO = \"gemini-2.5-flash\";\n\nconst moto = $input.first().json.moto;\nconst instrucciones = $input.first().json.instrucciones || \"\";\n\nif (!moto) {\n  throw new Error(\"No se recibió la información de la moto.\");\n}\n\nconst sistema = `\nEres el encargado de crear guiones para videos comerciales\nde \"Negocios con Alejo\", un negocio colombiano de compra y\nventa de motocicletas.\n\nEl presentador es Alejo, dueño del negocio. Él aparece en\npantalla y presenta directamente la motocicleta.\n\nOBJETIVO:\nCrear un guion para un video de presentación de la moto y\nel texto de su publicación en Instagram.\n\nREGLAS OBLIGATORIAS:\n\n1. El video debe durar entre 30 y 60 segundos.\nLa duración ideal está entre 40 y 50 segundos,\ndependiendo de la cantidad de información disponible.\n\nEl diálogo debe tener suficiente desarrollo para presentar\nla motocicleta de manera atractiva, natural y comercial.\nNo hagas una enumeración apresurada de características.\n\n2. El contenido será exclusivamente una presentación de la\nmotocicleta. No inventes historias, conversaciones, escenas\nalternativas ni otros personajes.\n\n3. Alejo es el único presentador. Debe hablar directamente\na la cámara o mientras presenta la motocicleta.\n\n3.1. El guion debe tener una progresión narrativa natural:\nuna introducción que capte la atención, una presentación\ndetallada de la motocicleta, la explicación de sus datos\ny características verificadas, y un cierre comercial.\n\n3.2. Combina el diálogo de Alejo con acciones visuales\nque permitan apreciar la motocicleta. Evita que todo el\nvideo consista en Alejo hablando estáticamente frente a ella.\n\n3.3. Aprovecha el tiempo disponible para desarrollar\nla presentación, sin repetir información ni utilizar\nfrases de relleno.\n\n4. Utiliza exclusivamente la información proporcionada.\nNo inventes precio, kilometraje, cilindraje, estado mecánico,\ngarantías, accesorios, características técnicas ni beneficios.\n\n5. Respeta exactamente el significado de la descripción.\nNo cambies expresiones como \"segundo dueño\" por \"segunda\ndueña\", ni alteres la información sobre documentos,\nmatrícula o traspaso.\n\n6. No afirmes que Alejo muestra, sostiene o señala documentos,\nplacas, llaves u objetos que no estén confirmados.\n\n7. Las acciones físicas deben ser sencillas y realistas:\nAlejo puede aparecer junto a la moto, caminar a su alrededor\no señalar partes visibles de ella. No describas detalles\nvisuales que no estén respaldados por las referencias.\n\n8. Escribe en español colombiano natural, cercano y directo.\nEvita frases publicitarias vacías y exageraciones.\n\n9. Todo lo que Alejo dice en voz alta debe estar entre\ncomillas. Las acciones deben escribirse en tercera persona,\nsin comillas.\n\n10. El guion debe ser un único bloque de texto continuo,\nsin dividirlo en escenas, tomas ni apartados.\n\n11. Termina el diálogo invitando a escribir por WhatsApp.\n\n12. El caption debe ser corto, atractivo, incluir emojis\nmoderados y no agregar información que no esté en los datos.\n\n13. Incluye entre 3 y 4 hashtags reales y relacionados\ncon la motocicleta y el sector.\n\nFORMATO DE RESPUESTA:\nDevuelve exclusivamente un JSON válido con estas claves:\n\"prompt_video\", \"caption\" y \"hashtags\".\n\n\"hashtags\" debe ser una lista de textos.\n\nNo incluyas explicaciones, introducciones ni bloques\nMarkdown fuera del JSON.\n\n\nDESARROLLO NARRATIVO SIN INFORMACIÓN INVENTADA:\n\nPara alcanzar la duración solicitada, desarrolla la\npresentación mediante la forma de comunicar y mostrar\nla motocicleta, no mediante características inventadas.\n\nPuedes:\n- Dar una introducción atractiva.\n- Presentar el modelo y año.\n- Describir los datos disponibles de manera natural.\n- Explicar la información de propietario, papeles,\n  traspaso y matrícula utilizando exclusivamente\n  la descripción original.\n- Reforzar verbalmente el precio y los datos importantes.\n- Finalizar con una invitación a contactar por WhatsApp.\n\nEstá prohibido rellenar el guion con afirmaciones sobre\npotencia, rendimiento, consumo, confiabilidad, comodidad,\nagilidad, estado mecánico, beneficios o ventajas que\nno aparezcan en los datos proporcionados.\n\nNo repitas una característica varias veces para\nalcanzar la duración.\n\nLas acciones visuales pueden complementar el diálogo,\npero no deben utilizarse para afirmar que existen\nelementos o características que no han sido confirmados.\n\nIMPORTANTE:\nSi la información disponible no permite desarrollar\nun diálogo de 80 a 120 palabras sin repetir o inventar,\nprioriza siempre la veracidad. No inventes información\npara cumplir una extensión.\n\nUtiliza estos datos sin modificarlos ni completar\ninformación que no esté disponible.\n\nCONTROL ESTRICTO DE INFORMACIÓN Y CREATIVIDAD:\n\nEstá prohibido completar información mediante suposiciones.\n\nNo inventes:\n- Que la moto acaba de llegar al negocio.\n- Que está como nueva o en excelente estado.\n- Que tiene características mecánicas no proporcionadas.\n- Que se ofrecen pruebas, garantías o servicios no confirmados.\n- Que existen documentos, mesas, llaves u objetos físicos en escena.\n\nNo conviertas el kilometraje, el número de propietarios\no la descripción comercial en afirmaciones sobre el estado\nmecánico o estético de la motocicleta.\n\nCREATIVIDAD VISUAL:\n\nEl guion debe seguir siendo atractivo y dinámico.\nPuedes proponer movimientos naturales de Alejo alrededor\nde la motocicleta, cambios de posición, acercamientos\ngenerales y gestos de presentación.\n\nNo describas detalles específicos de la motocicleta\nque no estén confirmados visualmente o en el catálogo.\n\nNo confundas creatividad con invención de información.\nLa presentación debe resultar interesante sin sacrificar\nla veracidad de los datos.\n\n\nDURACIÓN Y DESARROLLO DEL GUION:\n\nEl diálogo debe tener una extensión aproximada de\n80 a 120 palabras, buscando una duración natural\nde entre 35 y 50 segundos.\n\nNo cuentes las acciones físicas como palabras habladas.\n\nNo reduzcas el guion a una presentación rápida de datos.\nDesarrolla la presentación con una introducción atractiva,\ntransiciones naturales y un cierre comercial.\n\nFIDELIDAD A LA DESCRIPCIÓN:\n\nCuando utilices información de la descripción original,\nconserva sus expresiones y significado.\n\nNo sustituyas \"papeles nuevos\" por \"papeles renovados\",\n\"recién renovados\" u otras expresiones que puedan\ncambiar su significado.\n\nREGLAS VISUALES:\n\nNo menciones matrículas visibles, documentos en escena,\npartes específicas que Alejo señala ni detalles de la\npintura si no están confirmados visualmente.\n\nPuedes describir a Alejo caminando alrededor de la moto,\npresentándola junto a ella y realizando movimientos\nnaturales de exhibición.\n\n\nRESTRICCIONES COMERCIALES:\n\nNo inventes beneficios, promesas ni servicios del negocio.\nNo afirmes que una motocicleta es confiable, está como nueva,\nestá en excelente estado o tiene documentos en regla,\nsalvo que esos datos aparezcan expresamente en el catálogo.\n\nNo transformes la información original en afirmaciones\nmás amplias o diferentes.\n\nLa invitación final debe limitarse a contactar por WhatsApp.\nNo prometas entregas, pruebas, financiación o servicios\nque no hayan sido confirmados.\n\nCOHERENCIA DE LAS ACCIONES:\n\nLas acciones de Alejo deben tener sentido físico.\nNo describas movimientos que no permitan mostrar\nrealmente la característica mencionada.\n\n\n\n\n`;\n\nconst usuario = `\nINFORMACIÓN DE LA MOTOCICLETA:\n\nNombre: ${moto.nombre}\nModelo: ${moto.modelo}\nKilometraje: ${moto.km}\nPrecio: ${moto.precio}\nColor: ${moto.color}\nDescripción original: ${moto.descripcion}\n` + (instrucciones ? `\n\nINDICACIONES OPCIONALES DEL ADMINISTRADOR:\n${instrucciones}\n\nAplica estas indicaciones solo en cuanto al tono, el estilo o el énfasis del video.\nSiguen vigentes TODAS las reglas de veracidad: no inventes datos aunque las\nindicaciones lo sugieran.\n` : \"\");\n\nconst body = {\n  systemInstruction: { parts: [{ text: sistema }] },\n  contents: [{ role: \"user\", parts: [{ text: usuario }] }],\n  generationConfig: {\n    temperature: 0.5,\n    maxOutputTokens: 8192,\n    responseMimeType: \"application/json\"\n  }\n};\n\nreturn [{ json: { moto, modelo: MODELO, body } }];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        480,
+        -100
+      ],
+      "id": "30cfde3f-0714-4b05-a06b-25a8ee535b5c",
+      "name": "Prompt Gemini"
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "=https://generativelanguage.googleapis.com/v1beta/models/{{ $json.modelo }}:generateContent",
+        "authentication": "genericCredentialType",
+        "genericAuthType": "httpHeaderAuth",
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ JSON.stringify($json.body) }}",
+        "options": {
+          "timeout": 90000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.5,
+      "position": [
+        704,
+        -100
+      ],
+      "id": "341be245-25f3-4867-9faf-03a8b2929324",
+      "name": "Gemini",
+      "retryOnFail": true,
+      "credentials": {
+        "httpHeaderAuth": {
+          "id": "",
+          "name": "Gemini API Key"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const respuesta = $input.first().json;\n\nconst candidato = respuesta.candidates?.[0];\nlet content = (candidato?.content?.parts || []).map(p => p.text || \"\").join(\"\").trim();\n\nif (!content) {\n  const motivo = candidato?.finishReason || respuesta.promptFeedback?.blockReason || \"sin detalle\";\n  throw new Error(\"Gemini no devolvió contenido (motivo: \" + motivo + \").\");\n}\n\n// Por si Gemini envuelve el JSON en ```json ... ```\ncontent = content.replace(/^```(?:json)?\\s*/i, \"\").replace(/\\s*```$/, \"\");\n\nlet r;\ntry {\n  r = JSON.parse(content);\n} catch (error) {\n  throw new Error(\"La respuesta de Gemini no es un JSON válido.\");\n}\n\nif (!r.prompt_video || !r.caption || !Array.isArray(r.hashtags)) {\n  throw new Error(\"La respuesta de Gemini no contiene todos los campos esperados.\");\n}\n\nconst moto = $(\"Prompt Gemini\").first().json.moto;\n\nreturn [{\n  json: {\n    ok: true,\n    moto: { id: moto.id, nombre: moto.nombre },\n    prompt_video: r.prompt_video,\n    caption: r.caption,\n    hashtags: r.hashtags\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        928,
+        -100
+      ],
+      "id": "063cabc6-a30d-442b-b5a0-a548ca101ced",
+      "name": "Procesar respuesta"
+    },
+    {
+      "parameters": {
+        "respondWith": "json",
+        "responseBody": "={{ $json }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.respondToWebhook",
+      "typeVersion": 1.4,
+      "position": [
+        1152,
+        -100
+      ],
+      "id": "37231e3e-6a8a-48d1-8430-aee607f830c4",
+      "name": "Responder OK"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Verificar sesión",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Verificar sesión": {
+      "main": [
+        [
+          {
+            "node": "¿Es el administrador?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "¿Es el administrador?": {
+      "main": [
+        [
+          {
+            "node": "Catálogo",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Responder 401",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Catálogo": {
+      "main": [
+        [
+          {
+            "node": "Buscar moto",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Buscar moto": {
+      "main": [
+        [
+          {
+            "node": "Prompt Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Prompt Gemini": {
+      "main": [
+        [
+          {
+            "node": "Gemini",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Gemini": {
+      "main": [
+        [
+          {
+            "node": "Procesar respuesta",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Procesar respuesta": {
+      "main": [
+        [
+          {
+            "node": "Responder OK",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}
