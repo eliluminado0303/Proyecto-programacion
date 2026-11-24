@@ -3,7 +3,7 @@
    ---------------------------------------------------------------------
    Plan gratis de Supabase: 500 MB de base de datos, 1 GB de fotos, 5 GB de transferencia
    al mes, y el proyecto se PAUSA si pasa 1 semana sin recibir ninguna llamada
-   (ver GUIA-SUPABASE.md, paso "Mantener el proyecto activo").
+   (ver .github/workflows/mantener-activo.yml).
    Por eso este archivo:
      1. Pide motos + reseñas con UNA sola llamada (función catalogo() de la base).
      2. Guarda el resultado en el navegador (CACHE_MS) para no repetirla en cada visita.
@@ -34,6 +34,7 @@ function nuevoError(e) {
   if (code === "P0001") return new Error(msg);                                   // mensajes que escribimos en la base de datos
   if (/jwt|token|not authenticated/i.test(msg) || e?.status === 401) return new Error("La sesión venció. Cierra sesión y vuelve a entrar.");
   if (code === "42501" || /row-level security|violates/i.test(msg)) return new Error("No autorizado. Cierra sesión y vuelve a entrar.");
+  if (code === "23514") return new Error("Revisa los datos: algún campo supera el largo permitido o el máximo de fotos.");
   if (/exceeded|quota|too large|payload/i.test(msg)) return new Error("Una de las fotos pesa demasiado.");
   return new Error("No se pudo completar la acción. Intenta de nuevo en unos minutos.");
 }
@@ -232,8 +233,10 @@ async tokenSesion() {
 },
 
     haySesion() {
-      try { const s = JSON.parse(window.sessionStorage.getItem(K_SESION)); return !!(s && s.access_token); }
-      catch { return false; }
+      try {
+        const s = JSON.parse(window.sessionStorage.getItem(K_SESION));
+        return !!(s && s.access_token && (s.refresh_token || !s.expires_at || s.expires_at * 1000 > Date.now()));
+      } catch { return false; }
     },
 
     /* En producción NO se puede borrar todo desde el panel (el botón se oculta en App.jsx). */

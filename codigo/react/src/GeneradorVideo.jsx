@@ -30,6 +30,9 @@ export default function GeneradorVideo({ motos }) {
     e.preventDefault();
     setAviso(null);
     if (!URL_N8N) return setAviso({ tipo: "error", texto: "Falta configurar VITE_N8N_GENERAR_URL (la dirección del webhook de n8n)." });
+    if (location.protocol === "https:" && /^http:\/\/(localhost|127\.0\.0\.1)\b/i.test(URL_N8N)) {
+      return setAviso({ tipo: "error", texto: "VITE_N8N_GENERAR_URL apunta a localhost. En la web publicada debes usar una dirección pública https:// de n8n." });
+    }
     if (!motoId) return setAviso({ tipo: "error", texto: "Elige primero la moto." });
 
     setCargando(true); setResultado(null);

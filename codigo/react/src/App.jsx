@@ -2,11 +2,11 @@ import { createContext, useContext, useEffect, useRef, useState } from "react";
 import { createPortal } from "react-dom";
 import { almacen } from "./almacen.js";
 import GeneradorVideo from "./GeneradorVideo.jsx";
-import { NEGOCIO, TELEFONO, TELEFONO_VISIBLE, CORREO, HORARIO, LOGO, entregas, plantillas, DATOS_TRAMITE, tramites, metodosPago, quienesSomos, TIPOS_RESENA, MAX_FOTOS_RESENA, redes } from "./datos.js";
+import { NEGOCIO, TELEFONO, TELEFONO_VISIBLE, CORREO, HORARIO, LOGO, entregas, plantillas, DATOS_TRAMITE, tramites, metodosPago, quienesSomos, TIPOS_RESENA, MAX_FOTOS_RESENA, MAX_FOTOS_MOTO, redes } from "./datos.js";
 /* ======== HOOKS ======== */
 /* Guarda el scroll en variables CSS (--scroll en px y --progreso de 0 a 1).
    Con eso el CSS mueve la moto del encabezado, gira sus ruedas y hace el parallax. */
-function useScrollVars() {
+function useScrollVars(ruta) {
   useEffect(() => {
     const raiz = document.documentElement;
     let pendiente = false;
@@ -21,13 +21,15 @@ function useScrollVars() {
       if (!pendiente) { pendiente = true; requestAnimationFrame(actualizar); }
     };
     actualizar();
+    const raf = requestAnimationFrame(actualizar);
     window.addEventListener("scroll", alScroll, { passive: true });
     window.addEventListener("resize", alScroll);
     return () => {
+      cancelAnimationFrame(raf);
       window.removeEventListener("scroll", alScroll);
       window.removeEventListener("resize", alScroll);
     };
-  }, []);
+  }, [ruta]);
 }
 
 /* Devuelve [ref, visible]: visible pasa a true cuando el elemento entra en pantalla. */
@@ -110,25 +112,6 @@ function Reveal({ children, retraso = 0, className = "" }) {
   );
 }
 
-/* ======== CONTADOR ANIMADO ======== */
-function Contador({ valor, sufijo = "" }) {
-  const [ref, visible] = useVisible(0.4);
-  const [n, setN] = useState(0);
-  useEffect(() => {
-    if (!visible) return;
-    const inicio = performance.now();
-    let id;
-    const paso = (t) => {
-      const p = Math.min(1, (t - inicio) / 1200);
-      setN(Math.round(valor * (1 - Math.pow(1 - p, 3))));
-      if (p < 1) id = requestAnimationFrame(paso);
-    };
-    id = requestAnimationFrame(paso);
-    return () => cancelAnimationFrame(id);
-  }, [visible, valor]);
-  return <span ref={ref}>{n}{sufijo}</span>;
-}
-
 /* ======== PUNTERO PERSONALIZADO ======== */
 /* Un punto amarillo + una "rueda" que lo sigue y gira según la velocidad.
    No necesita permisos. Solo se activa con mouse (no en celulares) y si la persona
@@ -196,11 +179,12 @@ function Imagen({ archivo, alt, alCargar }) {
     ? (esExterna(archivo) || /\.\w+$/.test(archivo) ? [archivo] : EXTENSIONES.map((e) => archivo + e))
     : [];
   const [n, setN] = useState(0);
+  useEffect(() => { setN(0); }, [archivo]);
   if (n >= intentos.length) return <Marcador />;
   return (
     <img src={urlArchivo(intentos[n])} alt={alt} loading="lazy"
       onLoad={alCargar ? (e) => alCargar(e.currentTarget) : undefined}
-      onError={() => setN(n + 1)} />
+      onError={() => setN((prev) => prev + 1)} />
   );
 }
 
@@ -216,13 +200,15 @@ function Video({ archivo }) {
 /* Pantalla completa para ver las fotos grandes. Se cierra con la X, con Esc o tocando el fondo. */
 function Visor({ fotos, inicio, nombre, cerrar }) {
   const [i, setI] = useState(inicio);
-  const ir = (n) => setI((n + fotos.length) % fotos.length);
+  const cerrarRef = useRef(cerrar);
+  cerrarRef.current = cerrar;
+  const mover = (delta) => setI((actual) => (actual + delta + fotos.length) % fotos.length);
 
   useEffect(() => {
     const tecla = (e) => {
-      if (e.key === "Escape") cerrar();
-      if (e.key === "ArrowLeft") ir(i - 1);
-      if (e.key === "ArrowRight") ir(i + 1);
+      if (e.key === "Escape") cerrarRef.current();
+      if (e.key === "ArrowLeft") mover(-1);
+      if (e.key === "ArrowRight") mover(1);
     };
     window.addEventListener("keydown", tecla);
     document.body.style.overflow = "hidden";   // evita que la página se mueva por detrás
@@ -230,19 +216,19 @@ function Visor({ fotos, inicio, nombre, cerrar }) {
       window.removeEventListener("keydown", tecla);
       document.body.style.overflow = "";
     };
-  });
+  }, [fotos.length]);
 
   const parar = (fn) => (e) => { e.stopPropagation(); fn(); };
   return (
     <div className="visor" role="dialog" aria-modal="true" aria-label={"Fotos de " + nombre} onClick={cerrar}>
       <button type="button" className="visor-cerrar" aria-label="Cerrar" onClick={parar(cerrar)}>✕</button>
       <div className="visor-img" onClick={(e) => e.stopPropagation()}>
-        <Imagen archivo={fotos[i]} alt={nombre} />
+        <Imagen key={fotos[i]} archivo={fotos[i]} alt={nombre} />
       </div>
       {fotos.length > 1 && (
         <>
-          <button type="button" className="flecha ant" aria-label="Anterior" onClick={parar(() => ir(i - 1))}>‹</button>
-          <button type="button" className="flecha sig" aria-label="Siguiente" onClick={parar(() => ir(i + 1))}>›</button>
+          <button type="button" className="flecha ant" aria-label="Anterior" onClick={parar(() => mover(-1))}>‹</button>
+          <button type="button" className="flecha sig" aria-label="Siguiente" onClick={parar(() => mover(1))}>›</button>
           <span className="contador">{i + 1} / {fotos.length}</span>
         </>
       )}
@@ -259,7 +245,7 @@ function Media({ item }) {
   const medir = (img) => setProporcion(Math.min(1.6, Math.max(0.6, img.naturalWidth / img.naturalHeight)));
   const nombre = item.nombre || item.titulo;
   const piezas = fotos.map((f, k) => (
-    <Imagen key={f.slice(-40)} archivo={f} alt={nombre} alCargar={k === 0 ? medir : undefined} />
+    <Imagen key={`${k}-${f.slice(-24)}`} archivo={f} alt={nombre} alCargar={k === 0 ? medir : undefined} />
   ));
   if (item.video) piezas.push(<Video key="video" archivo={item.video} />);
 
@@ -500,12 +486,14 @@ function TarjetaMoto({ v }) {
         <span className={"estado " + v.estado}>{vendido ? "Vendido" : "Disponible"}</span>
         <h3>{v.nombre}</h3>
         <p className="precio">{v.precio}</p>
-        <ul className="datos">
-          <li><strong>Modelo:</strong> {v.modelo}</li>
-          <li><strong>Kilometraje:</strong> {v.km}</li>
-          <li><strong>Color:</strong> {v.color}</li>
-        </ul>
-        <p>{v.descripcion}</p>
+        {(v.modelo || v.km || v.color) && (
+          <ul className="datos">
+            {v.modelo && <li><strong>Modelo:</strong> {v.modelo}</li>}
+            {v.km && <li><strong>Kilometraje:</strong> {v.km}</li>}
+            {v.color && <li><strong>Color:</strong> {v.color}</li>}
+          </ul>
+        )}
+        {v.descripcion && <p>{v.descripcion}</p>}
         {!vendido && <BotonWA texto="Preguntar por WhatsApp" mensaje={`${plantillas.comprar[0]} ${v.nombre}`} />}
       </div>
     </article>
@@ -897,26 +885,40 @@ function CambiarClave() {
 }
 function Panel({ salir }) {
   const { motos, recargar } = useContext(Datos);
+  const formRef = useRef(null);
   const [form, setForm] = useState(MOTO_VACIA);
   const [editando, setEditando] = useState(null);      // id de la moto que se está editando
   const [mensaje, setMensaje] = useState(null);
+  const [avisoAccion, setAvisoAccion] = useState(null);
   const [subiendo, setSubiendo] = useState(false);
+  const [guardando, setGuardando] = useState(false);
   const [todasResenas, setTodasResenas] = useState([]);
 
-  const cargarResenas = async () => setTodasResenas(await almacen.listarResenas());
+  const cargarResenas = async () => {
+    try { setTodasResenas(await almacen.listarResenas()); }
+    catch (err) { setAvisoAccion({ tipo: "error", texto: err.message }); }
+  };
   useEffect(() => { almacen.refrescar(); recargar(); cargarResenas(); }, []);   // el panel siempre arranca con datos frescos
 
   const cambiar = (campo) => (e) => setForm({ ...form, [campo]: e.target.value });
 
   const anadirFotos = async (e) => {
-    const archivos = [...e.target.files];
+    const disponibles = MAX_FOTOS_MOTO - form.fotos.length;
+    const seleccion = [...e.target.files];
     e.target.value = "";
-    if (!archivos.length) return;
+    if (!seleccion.length) return;
+    if (disponibles <= 0) {
+      return setMensaje({ tipo: "error", texto: `Máximo ${MAX_FOTOS_MOTO} fotos por moto.` });
+    }
+    const archivos = seleccion.slice(0, disponibles);
     setSubiendo(true);
     try {
       const nuevas = [];
       for (const a of archivos) nuevas.push(await almacen.subirFoto(a));
       setForm((f) => ({ ...f, fotos: [...f.fotos, ...nuevas] }));
+      setMensaje(seleccion.length > disponibles
+        ? { tipo: "error", texto: `Solo se agregaron ${disponibles} fotos (máximo ${MAX_FOTOS_MOTO} por moto).` }
+        : null);
     } catch (err) {
       setMensaje({ tipo: "error", texto: err.message });
     }
@@ -929,54 +931,87 @@ function Panel({ salir }) {
 
   const guardar = async (e) => {
     e.preventDefault();
+    if (guardando) return;
     if (!form.nombre.trim() || !soloNumeros(form.precio)) {
       return setMensaje({ tipo: "error", texto: "El nombre y el precio son obligatorios." });
     }
+    if (form.fotos.length > MAX_FOTOS_MOTO) {
+      return setMensaje({ tipo: "error", texto: `Máximo ${MAX_FOTOS_MOTO} fotos por moto.` });
+    }
+    const kmDigitos = soloNumeros(form.km);
     const moto = {
       id: editando || undefined,
       nombre: form.nombre.trim(),
       modelo: form.modelo.trim(),
-      km: form.km ? kilometros(soloNumeros(form.km)) : "",
+      km: kmDigitos ? kilometros(kmDigitos) : "",
       precio: dinero(soloNumeros(form.precio)),
       color: form.color.trim(),
       descripcion: form.descripcion.trim(),
       fotos: form.fotos,
-      video: form.video,
+      video: form.video.trim(),
       estado: form.estado,
     };
+    setGuardando(true);
     try {
       await almacen.guardarMoto(moto);
       await recargar();
       setMensaje({ tipo: "ok", texto: editando ? "Moto actualizada." : "Moto agregada al catálogo." });
+      setAvisoAccion(null);
       setForm(MOTO_VACIA); setEditando(null);
     } catch (err) {
       setMensaje({ tipo: "error", texto: err.message });
     }
+    setGuardando(false);
   };
 
   const editar = (m) => {
     setForm({ nombre: m.nombre, modelo: m.modelo || "", km: soloNumeros(m.km), precio: soloNumeros(m.precio), color: m.color || "",
       descripcion: m.descripcion || "", estado: m.estado, fotos: m.fotos || [], video: m.video || "" });
-    setEditando(m.id); setMensaje(null);
-    window.scrollTo({ top: 0, behavior: "smooth" });
+    setEditando(m.id); setMensaje(null); setAvisoAccion(null);
+    formRef.current?.scrollIntoView({ behavior: "smooth", block: "start" });
   };
   const cambiarEstado = async (m) => {
-    await almacen.guardarMoto({ ...m, estado: m.estado === "vendido" ? "disponible" : "vendido" });
-    recargar();
+    setAvisoAccion(null);
+    try {
+      await almacen.guardarMoto({ ...m, estado: m.estado === "vendido" ? "disponible" : "vendido" });
+      await recargar();
+    } catch (err) {
+      setAvisoAccion({ tipo: "error", texto: err.message });
+    }
   };
   const borrar = async (m) => {
     if (!window.confirm(`¿Eliminar "${m.nombre}" del catálogo? Esta acción no se puede deshacer.`)) return;
-    await almacen.borrarMoto(m.id);
-    recargar();
+    setAvisoAccion(null);
+    try {
+      await almacen.borrarMoto(m.id);
+      if (editando === m.id) cancelar();
+      await recargar();
+    } catch (err) {
+      setAvisoAccion({ tipo: "error", texto: err.message });
+    }
   };
 
   const borrarResena = async (r) => {
     if (!window.confirm("¿Eliminar esta reseña?")) return;
-    await almacen.borrarResena(r.id); await cargarResenas(); recargar();
+    setAvisoAccion(null);
+    try {
+      await almacen.borrarResena(r.id);
+      await cargarResenas();
+      await recargar();
+    } catch (err) {
+      setAvisoAccion({ tipo: "error", texto: err.message });
+    }
   };
   const restablecer = async () => {
     if (!window.confirm("Se borrarán TODAS las motos y reseñas guardadas y volverán los datos de ejemplo. ¿Continuar?")) return;
-    await almacen.restablecer(); await recargar(); await cargarResenas();
+    setAvisoAccion(null);
+    try {
+      await almacen.restablecer();
+      await recargar();
+      await cargarResenas();
+    } catch (err) {
+      setAvisoAccion({ tipo: "error", texto: err.message });
+    }
   };
 
   const FilaResena = ({ r }) => (
@@ -997,6 +1032,7 @@ function Panel({ salir }) {
         {almacen.modo === "local" && (
           <p className="aviso prueba">Modo de prueba: lo que guardes aquí se queda solo en este navegador. Al publicar la página se conectará a una base de datos real.</p>
         )}
+        {avisoAccion && <p className={"aviso " + avisoAccion.tipo} style={{ marginBottom: 14 }}>{avisoAccion.texto}</p>}
         <div className="fila-botones">
           <button type="button" className="boton claro chico" onClick={salir}>Cerrar sesión</button>
           {almacen.modo === "local" && (
@@ -1004,66 +1040,76 @@ function Panel({ salir }) {
           )}
         </div>
       </Seccion>
-            <Seccion titulo="Generar video con IA">
+      <Seccion titulo="Generar video con IA">
         <GeneradorVideo motos={motos} />
       </Seccion>
 
-      <Seccion titulo={editando ? "Editar moto" : "Agregar moto"}>
-        <form className="formulario" onSubmit={guardar}>
-          <label>Nombre de la moto *
-            <input value={form.nombre} onChange={cambiar("nombre")} placeholder="Ej: Discover 125 roja" />
-          </label>
-          <div className="fila-form">
-            <label>Modelo (año)
-              <input inputMode="numeric" value={form.modelo} onChange={cambiar("modelo")} placeholder="Ej: 2024" />
+      <div ref={formRef} style={{ scrollMarginTop: 108 }}>
+        <Seccion titulo={editando ? "Editar moto" : "Agregar moto"}>
+          <form className="formulario" onSubmit={guardar}>
+            <label>Nombre de la moto *
+              <input value={form.nombre} onChange={cambiar("nombre")} maxLength={80} placeholder="Ej: Discover 125 roja" />
             </label>
-            <label>Kilometraje
-              <input inputMode="numeric" value={form.km} onChange={cambiar("km")} placeholder="Solo números, ej: 8300" />
-            </label>
-          </div>
-          <div className="fila-form">
-            <label>Precio *
-              <input inputMode="numeric" value={form.precio} onChange={cambiar("precio")} placeholder="Solo números, ej: 6200000" />
-            </label>
-            <label>Color
-              <input value={form.color} onChange={cambiar("color")} placeholder="Ej: Roja" />
-            </label>
-          </div>
-          <label>Descripción
-            <textarea rows="3" value={form.descripcion} onChange={cambiar("descripcion")}
-              placeholder="Dueños, papeles, impuestos, matrícula, estado..." />
-          </label>
-          <label>Estado
-            <select value={form.estado} onChange={cambiar("estado")}>
-              <option value="disponible">Disponible</option>
-              <option value="vendido">Vendido</option>
-            </select>
-          </label>
-          <label>Fotos (puedes elegir varias a la vez)
-            <input type="file" accept="image/*" multiple onChange={anadirFotos} />
-          </label>
-          {subiendo && <p className="nota">Procesando fotos...</p>}
-          {form.fotos.length > 0 && (
-            <div className="miniaturas">
-              {form.fotos.map((f, i) => (
-                <div className="miniatura" key={i}>
-                  <div className="caja"><Imagen archivo={f} alt={`Foto ${i + 1}`} /></div>
-                  {i === 0 ? <span className="portada">Portada</span>
-                    : <button type="button" onClick={() => ponerPortada(i)}>Hacer portada</button>}
-                  <button type="button" onClick={() => quitarFoto(i)}>Quitar</button>
-                </div>
-              ))}
+            <div className="fila-form">
+              <label>Modelo (año)
+                <input inputMode="numeric" value={form.modelo} onChange={cambiar("modelo")} maxLength={20} placeholder="Ej: 2024" />
+              </label>
+              <label>Kilometraje
+                <input inputMode="numeric" value={form.km} onChange={cambiar("km")} maxLength={12} placeholder="Solo números, ej: 8300" />
+              </label>
             </div>
-          )}
-          {mensaje && <p className={"aviso " + mensaje.tipo}>{mensaje.texto}</p>}
-          <div className="fila-botones">
-            <button className="boton" type="submit" disabled={subiendo}>{editando ? "Guardar cambios" : "Agregar al catálogo"}</button>
-            {editando && <button type="button" className="boton claro" onClick={cancelar}>Cancelar</button>}
-          </div>
-        </form>
-      </Seccion>
+            <div className="fila-form">
+              <label>Precio *
+                <input inputMode="numeric" value={form.precio} onChange={cambiar("precio")} maxLength={14} placeholder="Solo números, ej: 6200000" />
+              </label>
+              <label>Color
+                <input value={form.color} onChange={cambiar("color")} maxLength={30} placeholder="Ej: Roja" />
+              </label>
+            </div>
+            <label>Descripción
+              <textarea rows="3" value={form.descripcion} onChange={cambiar("descripcion")} maxLength={600}
+                placeholder="Dueños, papeles, impuestos, matrícula, estado..." />
+            </label>
+            <div className="fila-form">
+              <label>Estado
+                <select value={form.estado} onChange={cambiar("estado")}>
+                  <option value="disponible">Disponible</option>
+                  <option value="vendido">Vendido</option>
+                </select>
+              </label>
+              <label>Video (opcional)
+                <input value={form.video} onChange={cambiar("video")} maxLength={120} placeholder="Ej: discover.mp4 o URL https://..." />
+              </label>
+            </div>
+            <label>Fotos (hasta {MAX_FOTOS_MOTO}, puedes elegir varias a la vez)
+              <input type="file" accept="image/*" multiple onChange={anadirFotos} disabled={subiendo || form.fotos.length >= MAX_FOTOS_MOTO} />
+            </label>
+            {subiendo && <p className="nota">Procesando fotos...</p>}
+            {form.fotos.length > 0 && (
+              <div className="miniaturas">
+                {form.fotos.map((f, i) => (
+                  <div className="miniatura" key={i}>
+                    <div className="caja"><Imagen archivo={f} alt={`Foto ${i + 1}`} /></div>
+                    {i === 0 ? <span className="portada">Portada</span>
+                      : <button type="button" onClick={() => ponerPortada(i)}>Hacer portada</button>}
+                    <button type="button" onClick={() => quitarFoto(i)}>Quitar</button>
+                  </div>
+                ))}
+              </div>
+            )}
+            {mensaje && <p className={"aviso " + mensaje.tipo}>{mensaje.texto}</p>}
+            <div className="fila-botones">
+              <button className="boton" type="submit" disabled={subiendo || guardando}>
+                {guardando ? "Guardando..." : editando ? "Guardar cambios" : "Agregar al catálogo"}
+              </button>
+              {editando && <button type="button" className="boton claro" onClick={cancelar} disabled={guardando}>Cancelar</button>}
+            </div>
+          </form>
+        </Seccion>
+      </div>
 
       <Seccion titulo={`Motos del catálogo (${motos.length})`}>
+        {avisoAccion && <p className={"aviso " + avisoAccion.tipo} style={{ marginBottom: 14 }}>{avisoAccion.texto}</p>}
         {motos.length === 0 && <p className="nota">No hay motos todavía.</p>}
         <div className="admin-lista">
           {motos.map((m) => (
@@ -1071,7 +1117,7 @@ function Panel({ salir }) {
               <div className="admin-mini"><Imagen archivo={(m.fotos || [])[0]} alt={m.nombre} /></div>
               <div className="admin-info">
                 <strong>{m.nombre}</strong>
-                <span>{m.precio} · {m.modelo}</span>
+                <span>{[m.precio, m.modelo].filter(Boolean).join(" · ")}</span>
                 <span className={"estado " + m.estado}>{m.estado === "vendido" ? "Vendido" : "Disponible"}</span>
               </div>
               <div className="admin-botones">
@@ -1213,7 +1259,7 @@ const rutaActual = () => {
 export default function App() {
   const [ruta, setRuta] = useState(rutaActual);
   const [datos, setDatos] = useState({ motos: [], resenas: [], cargado: false, error: false });
-  useScrollVars();
+  useScrollVars(ruta);
 
   // Trae motos y reseñas del almacén. Se vuelve a llamar cada vez que algo cambia.
   const recargar = async () => {
