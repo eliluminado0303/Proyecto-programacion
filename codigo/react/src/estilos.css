@@ -132,6 +132,17 @@ strong { color: var(--tinta); }
 .moto { position: absolute; bottom: 3px; width: 56px; color: var(--acento); left: calc((100% - 56px) * var(--progreso, 0)); filter: none; }
 .rueda { transform-box: view-box; transform: rotate(calc(var(--scroll, 0) * 1.3deg)); }
 
+/* ----- Logo con la motico que "cae" (solo pantallas secundarias) -----
+   Arriba del todo (sin scroll) la motico está dentro del círculo del logo y la de la carretera está oculta.
+   En cuanto se empieza a hacer scroll, la del logo cae y desaparece y la de la carretera aparece y avanza. */
+.logo-aro { position: relative; display: block; flex: none; background: radial-gradient(circle at 50% 40%, #243750, #1B2A3A 70%); overflow: visible; }
+.logo-aro::after { content: ""; position: absolute; inset: 4px; border-radius: 50%; border: 1px solid rgba(235, 187, 63, .28); }
+.logo-moto { position: absolute; left: 50%; top: 50%; width: 82%; translate: -50% -50%; color: var(--acento); transition: translate .55s cubic-bezier(.5, 0, 1, .6), opacity .35s ease .2s; }
+.logo-moto .moto { position: static; width: 100%; display: block; }
+.cayo .cabecera.con-aro .logo-moto { translate: -50% 160px; opacity: 0; }
+.cabecera.con-aro .moto-pista .moto { opacity: 0; transition: opacity .3s ease .35s; }
+.cayo .cabecera.con-aro .moto-pista .moto { opacity: 1; }
+
 /* ===== 5. CONTENIDO Y SECCIONES ===== */
 .pagina { max-width: 1100px; margin: 0 auto; padding: 22px 20px 44px; animation: entrada .5s ease both; }
 .pagina.es-inicio { max-width: none; padding: 0 0 12px; }
