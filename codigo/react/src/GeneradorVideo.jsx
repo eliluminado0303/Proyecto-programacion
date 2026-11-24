@@ -30,9 +30,6 @@ export default function GeneradorVideo({ motos }) {
     e.preventDefault();
     setAviso(null);
     if (!URL_N8N) return setAviso({ tipo: "error", texto: "Falta configurar VITE_N8N_GENERAR_URL (la dirección del webhook de n8n)." });
-    if (location.protocol === "https:" && /^http:\/\/(localhost|127\.0\.0\.1)\b/i.test(URL_N8N)) {
-      return setAviso({ tipo: "error", texto: "VITE_N8N_GENERAR_URL apunta a localhost. En la web publicada debes usar una dirección pública https:// de n8n." });
-    }
     if (!motoId) return setAviso({ tipo: "error", texto: "Elige primero la moto." });
 
     setCargando(true); setResultado(null);
@@ -51,7 +48,14 @@ export default function GeneradorVideo({ motos }) {
       if (!resp.ok || !datos || datos.error) throw new Error((datos && datos.error) || "n8n no pudo generar el video. Revisa la ejecución en n8n.");
       setResultado(datos);
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.name === "AbortError" ? "Se demoró demasiado. Intenta de nuevo." : err.message });
+      const esRedLocal = /failed to fetch|networkerror|load failed/i.test(String(err && err.message))
+        && /^http:\/\/(localhost|127\.0\.0\.1)\b/i.test(URL_N8N);
+      const texto = err.name === "AbortError"
+        ? "Se demoró demasiado. Intenta de nuevo."
+        : esRedLocal
+          ? "No se pudo conectar con n8n local. Verifica que n8n esté encendido en este computador."
+          : err.message;
+      setAviso({ tipo: "error", texto });
     } finally {
       clearTimeout(reloj);
       setCargando(false);
