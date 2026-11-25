@@ -883,6 +883,38 @@ function CambiarClave() {
     </Seccion>
   );
 }
+function FilaResena({ r, onBorrar }) {
+  const [visorInicio, setVisorInicio] = useState(null);
+  const fotos = r.fotos || [];
+  return (
+    <div className="admin-fila resena-fila">
+      <div className="admin-info">
+        <span className="admin-resena-cab">
+          <Estrellas valor={r.estrellas} /> <strong>{r.nombre}</strong>
+          {r.tipo && <span className="pildora chica">{r.tipo}</span>}
+        </span>
+        <span>{r.texto}</span>
+        {fotos.length > 0 && (
+          <div className="admin-resena-fotos">
+            {fotos.map((f, i) => (
+              <button key={`${i}-${f.slice(-24)}`} type="button" className="admin-foto-btn"
+                aria-label={`Ver foto ${i + 1} de ${r.nombre}`} onClick={() => setVisorInicio(i)}>
+                <Imagen archivo={f} alt={`Foto ${i + 1} de ${r.nombre}`} />
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
+      <div className="admin-botones">
+        <button type="button" className="boton chico peligro" onClick={() => onBorrar(r)}>Eliminar</button>
+      </div>
+      {visorInicio !== null && createPortal(
+        <Visor fotos={fotos} inicio={visorInicio} nombre={`Reseña de ${r.nombre}`} cerrar={() => setVisorInicio(null)} />,
+        document.body
+      )}
+    </div>
+  );
+}
 function Panel({ salir }) {
   const { motos, recargar } = useContext(Datos);
   const formRef = useRef(null);
@@ -1014,18 +1046,6 @@ function Panel({ salir }) {
     }
   };
 
-  const FilaResena = ({ r }) => (
-    <div className="admin-fila resena-fila">
-      <div className="admin-info">
-        <span><Estrellas valor={r.estrellas} /> <strong>{r.nombre}</strong></span>
-        <span>{r.texto}</span>
-      </div>
-      <div className="admin-botones">
-        <button type="button" className="boton chico peligro" onClick={() => borrarResena(r)}>Eliminar</button>
-      </div>
-    </div>
-  );
-
   return (
     <>
       <Seccion titulo="Panel del administrador">
@@ -1135,7 +1155,7 @@ function Panel({ salir }) {
       <Seccion titulo={`Reseñas de clientes (${todasResenas.length})`}>
         <p className="nota">Las reseñas se publican solas. Desde aquí puedes eliminar las que no quieras mostrar.</p>
         {todasResenas.length === 0 ? <p className="nota">Todavía no hay reseñas.</p>
-          : <div className="admin-lista">{todasResenas.map((r) => <FilaResena key={r.id} r={r} />)}</div>}
+          : <div className="admin-lista">{todasResenas.map((r) => <FilaResena key={r.id} r={r} onBorrar={borrarResena} />)}</div>}
       </Seccion>
       <CambiarClave />
     </>
