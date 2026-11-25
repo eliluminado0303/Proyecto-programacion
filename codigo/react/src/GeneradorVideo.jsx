@@ -48,7 +48,14 @@ export default function GeneradorVideo({ motos }) {
       if (!resp.ok || !datos || datos.error) throw new Error((datos && datos.error) || "n8n no pudo generar el video. Revisa la ejecución en n8n.");
       setResultado(datos);
     } catch (err) {
-      setAviso({ tipo: "error", texto: err.name === "AbortError" ? "Se demoró demasiado. Intenta de nuevo." : err.message });
+      const esRedLocal = /failed to fetch|networkerror|load failed/i.test(String(err && err.message))
+        && /^http:\/\/(localhost|127\.0\.0\.1)\b/i.test(URL_N8N);
+      const texto = err.name === "AbortError"
+        ? "Se demoró demasiado. Intenta de nuevo."
+        : esRedLocal
+          ? "No se pudo conectar con n8n local. Verifica que n8n esté encendido en este computador."
+          : err.message;
+      setAviso({ tipo: "error", texto });
     } finally {
       clearTimeout(reloj);
       setCargando(false);

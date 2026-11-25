@@ -8,7 +8,7 @@ export const TELEFONO = "573015602104";
 export const TELEFONO_VISIBLE = "+57 301 5602104";
 export const CORREO = "Battcontador@gmail.com";
 export const HORARIO = "8:00 a. m. a 10:00 p. m.";
-export const LOGO = "simbolo-lado.png";
+export const LOGO = "simbolo-512.png";
 
 /* MOTOS INICIALES: se cargan la primera vez. Después las motos se agregan y editan desde el panel de administrador (#/admin).
    estado: "disponible" o "vendido". fotos: con 2 o más aparecen las flechas ‹ ›.
@@ -25,10 +25,8 @@ export const vehiculos = [
     fotos: ["NSperfil", "NSfrontal", "NSlado"], video: "", estado: "disponible" },
 ];
 
-/* Entregas: es un EJEMPLO, reemplazar por entregas reales. */
-export const entregas = [
-  { titulo: "Entrega de ejemplo", texto: "Aquí va la foto o el video de la entrega a un cliente.", foto: "", video: "" },
-];
+/* Entregas: agrega aquí entregas reales con { titulo, texto, foto, video }. */
+export const entregas = [];
 
 /* Plantillas de WhatsApp: [saludo, [campos que el cliente completa]] */
 export const plantillas = {
@@ -58,7 +56,7 @@ export const metodosPago = [
 ];
 
 export const redes = [
-  { texto: "Instagram", detalle: "@lasmotosdealejo", url: "https://www.instagram.com/lasmotosdealejo?utm_source=ig_web_button_share_sheet&psln=ZDNlZDc0MzIxNw==" },
+  { texto: "Instagram", detalle: "@lasmotosdealejo", url: "https://www.instagram.com/lasmotosdealejo/" },
   { texto: "TikTok", detalle: "@alejandroparizados", url: "https://www.tiktok.com/@alejandroparizados" },
   { texto: "WhatsApp", detalle: TELEFONO_VISIBLE, url: `https://wa.me/${TELEFONO}` },
 ];
@@ -90,6 +88,7 @@ export const TIPOS_RESENA = [
   { id: "otro", nombre: "Otro", fotoObligatoria: false },
 ];
 export const MAX_FOTOS_RESENA = 3;
+export const MAX_FOTOS_MOTO = 12;
 
 /* Clave INICIAL del panel de administrador. El dueño puede cambiarla desde el propio panel.
    SOLO sirve en el modo de prueba local; al publicar se reemplaza por un inicio de sesión real. */

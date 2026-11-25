@@ -1,11 +1,11 @@
 -- =====================================================================
--- "Negocios con Alejo" - Base de datos en Supabase
+-- "Motos con Alejo" - Base de datos en Supabase
 -- Se pega COMPLETO en: Supabase > SQL Editor > New query > Run
 -- Se puede ejecutar más de una vez sin romper nada.
 -- ---------------------------------------------------------------------
 -- Idea de seguridad:
 --   * Cualquiera puede VER las motos y las reseñas (a través de catalogo()).
---   * Solo el administrador (usuario con sesión) crea/edita/borra motos y borra reseñas.
+--   * Solo el administrador (correo autorizado en es_admin()) crea/edita/borra motos y borra reseñas.
 --   * Los visitantes publican reseñas SOLO por crear_resena(), que valida todo
 --     y frena el spam. No pueden escribir directo en la tabla.
 -- =====================================================================
@@ -40,6 +40,20 @@ create index if not exists resenas_huella_idx on public.resenas (huella, created
 create index if not exists resenas_fecha_idx  on public.resenas (created_at desc);
 
 -- ---------- SEGURIDAD A NIVEL DE FILA (RLS) ----------
+-- Solo este correo autenticado tiene permisos de administrador.
+-- Además, desactiva "Allow new users to sign up" en Supabase > Authentication > Providers > Email.
+create or replace function public.es_admin()
+returns boolean
+language sql
+stable
+set search_path = public
+as $$
+  select auth.role() = 'authenticated'
+     and lower(coalesce(auth.jwt() ->> 'email', '')) = 'marianabedoya0110@gmail.com';
+$$;
+revoke all on function public.es_admin() from public;
+grant execute on function public.es_admin() to anon, authenticated;
+
 alter table public.motos   enable row level security;
 alter table public.resenas enable row level security;
 
@@ -51,13 +65,13 @@ drop policy if exists "resenas: admin ve"         on public.resenas;
 drop policy if exists "resenas: admin borra"      on public.resenas;
 
 create policy "motos: ver todos"       on public.motos for select to anon, authenticated using (true);
-create policy "motos: admin inserta"   on public.motos for insert to authenticated with check (true);
-create policy "motos: admin actualiza" on public.motos for update to authenticated using (true) with check (true);
-create policy "motos: admin borra"     on public.motos for delete to authenticated using (true);
+create policy "motos: admin inserta"   on public.motos for insert to authenticated with check (public.es_admin());
+create policy "motos: admin actualiza" on public.motos for update to authenticated using (public.es_admin()) with check (public.es_admin());
+create policy "motos: admin borra"     on public.motos for delete to authenticated using (public.es_admin());
 
 -- Reseñas: el público NO lee ni escribe directo (por eso no tiene políticas). El admin sí ve y borra.
-create policy "resenas: admin ve"    on public.resenas for select to authenticated using (true);
-create policy "resenas: admin borra" on public.resenas for delete to authenticated using (true);
+create policy "resenas: admin ve"    on public.resenas for select to authenticated using (public.es_admin());
+create policy "resenas: admin borra" on public.resenas for delete to authenticated using (public.es_admin());
 
 -- Permisos de tabla (explícitos, por si el proyecto no los da por defecto)
 revoke all on public.motos, public.resenas from anon, authenticated;
@@ -167,6 +181,6 @@ drop policy if exists "fotos: admin borra"                on storage.objects;
 create policy "fotos: visitantes suben a resenas" on storage.objects for insert to anon, authenticated
   with check (bucket_id = 'fotos' and (storage.foldername(name))[1] = 'resenas');
 -- El administrador sube a cualquier carpeta, ve y borra
-create policy "fotos: admin sube"  on storage.objects for insert to authenticated with check (bucket_id = 'fotos');
-create policy "fotos: admin ve"    on storage.objects for select to authenticated using (bucket_id = 'fotos');
-create policy "fotos: admin borra" on storage.objects for delete to authenticated using (bucket_id = 'fotos');
+create policy "fotos: admin sube"  on storage.objects for insert to authenticated with check (bucket_id = 'fotos' and public.es_admin());
+create policy "fotos: admin ve"    on storage.objects for select to authenticated using (bucket_id = 'fotos' and public.es_admin());
+create policy "fotos: admin borra" on storage.objects for delete to authenticated using (bucket_id = 'fotos' and public.es_admin());
