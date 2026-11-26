@@ -9,7 +9,8 @@
      - ADMIN_EMAILS    (opcional, correos autorizados separados por coma)
    ===================================================================== */
 
-const MODELO = "gemini-2.5-flash";
+const MODELO_GROQ = "openai/gpt-oss-120b";
+const MODELO_GEMINI = "gemini-2.5-flash";
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://kuxgkrkuqufxydmlhauc.supabase.co";
 const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_KEY || "sb_publishable_-FB8Gy5AF-rMhmI-BBKTWg_k9r2oxpW";
 
@@ -210,24 +211,88 @@ sin dividir en escenas, tomas, apartados ni listas.
 "hashtags" debe ser una lista de textos.
 `;
 
+function extraerJson(textoCrudo) {
+  const limpio = String(textoCrudo || "")
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+  const r = JSON.parse(limpio);
+  if (!r.prompt_video || !r.caption || !Array.isArray(r.hashtags)) {
+    throw new Error("Respuesta incompleta de la IA.");
+  }
+  return r;
+}
+
+async function llamarGroq(apiKey, usuario) {
+  const clave = apiKey.replace(/^Bearer\s+/i, "").trim();
+  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: { "Content-Type": "application/json", Authorization: `Bearer ${clave}` },
+    body: JSON.stringify({
+      model: MODELO_GROQ,
+      messages: [
+        { role: "system", content: SISTEMA },
+        { role: "user", content: usuario },
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 2048,
+    }),
+  });
+  const datos = await resp.json().catch(() => null);
+  if (!resp.ok) throw new Error(`Groq: ${datos?.error?.message || `HTTP ${resp.status}`}`);
+  const texto = datos?.choices?.[0]?.message?.content;
+  if (typeof texto !== "string" || !texto.trim()) throw new Error("Groq no devolvió contenido.");
+  return extraerJson(texto);
+}
+
+async function llamarGemini(apiKey, usuario) {
+  const clave = apiKey.replace(/^Bearer\s+/i, "").trim();
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODELO_GEMINI}:generateContent`,
+    {
+      method: "POST",
+      headers: { "Content-Type": "application/json", "x-goog-api-key": clave },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SISTEMA }] },
+        contents: [{ role: "user", parts: [{ text: usuario }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingBudget: 0 },
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              prompt_video: { type: "STRING" },
+              caption: { type: "STRING" },
+              hashtags: { type: "ARRAY", items: { type: "STRING" } },
+            },
+            required: ["prompt_video", "caption", "hashtags"],
+          },
+        },
+      }),
+    }
+  );
+  const datos = await resp.json().catch(() => null);
+  if (!resp.ok) throw new Error(`Gemini: ${datos?.error?.message || `HTTP ${resp.status}`}`);
+  const candidato = datos?.candidates?.[0];
+  const texto = (candidato?.content?.parts || []).map((p) => p.text || "").join("").trim();
+  if (!texto) throw new Error("Gemini no devolvió contenido.");
+  return extraerJson(texto);
+}
+
 export default async function handler(req) {
   if (req.method === "OPTIONS") return new Response(null, { status: 204, headers: CORS });
   if (req.method !== "POST") return json({ error: "Método no permitido." }, 405);
 
-  const apiKey = (process.env.GEMINI_API_KEY || "").trim();
-  if (!apiKey) {
-    return json(
-      { error: "Falta configurar la variable GEMINI_API_KEY en Netlify (Environment variables)." },
-      500
-    );
+  const groqKey = (process.env.GROQ_API_KEY || "").trim();
+  const geminiKey = (process.env.GEMINI_API_KEY || "").trim();
+  if (!groqKey && !geminiKey) {
+    return json({ error: "Falta configurar GROQ_API_KEY o GEMINI_API_KEY en Netlify (Environment variables)." }, 500);
   }
 
   let entrada;
-  try {
-    entrada = await req.json();
-  } catch {
-    return json({ error: "Petición inválida." }, 400);
-  }
+  try { entrada = await req.json(); } catch { return json({ error: "Petición inválida." }, 400); }
 
   const token = String(entrada?.token || "").trim();
   const motoId = String(entrada?.moto_id || "").trim();
@@ -236,7 +301,6 @@ export default async function handler(req) {
   if (!token) return json({ error: "No autorizado" }, 401);
   if (!motoId) return json({ error: "Falta elegir la moto." }, 400);
 
-  // 1. Verificar sesión en Supabase Auth
   let user;
   try {
     const authResp = await fetch(`${SUPABASE_URL}/auth/v1/user`, {
@@ -248,10 +312,8 @@ export default async function handler(req) {
     return json({ error: "No se pudo verificar tu sesión con Supabase." }, 502);
   }
 
-  const email = String(user?.email || "").toLowerCase();
-  if (!ADMINS.has(email)) return json({ error: "No autorizado" }, 401);
+  if (!ADMINS.has(String(user?.email || "").toLowerCase())) return json({ error: "No autorizado" }, 401);
 
-  // 2. Traer catálogo y buscar la moto
   let moto;
   try {
     const catResp = await fetch(`${SUPABASE_URL}/rest/v1/rpc/catalogo`, {
@@ -268,92 +330,34 @@ export default async function handler(req) {
 
   if (!moto) return json({ error: "No se encontró esa moto en el catálogo." }, 404);
 
-  // 3. Armar mensaje de usuario y llamar a Gemini
   const usuario =
     `INFORMACIÓN DE LA MOTOCICLETA:\n\n` +
-    `Nombre: ${moto.nombre}\n` +
-    `Modelo: ${moto.modelo || ""}\n` +
-    `Kilometraje: ${moto.km || ""}\n` +
-    `Precio: ${moto.precio || ""}\n` +
-    `Color: ${moto.color || ""}\n` +
-    `Descripción original: ${moto.descripcion || ""}\n\n` +
+    `Nombre: ${moto.nombre}\nModelo: ${moto.modelo || ""}\nKilometraje: ${moto.km || ""}\n` +
+    `Precio: ${moto.precio || ""}\nColor: ${moto.color || ""}\nDescripción original: ${moto.descripcion || ""}\n\n` +
     (instrucciones
       ? `INDICACIONES PARTICULARES DEL ADMINISTRADOR:\n\n${instrucciones}\n\nTen en cuenta estas indicaciones al construir el guion. Intégralas de forma concreta en las acciones, la narrativa, los planos, el diálogo o el cierre, según corresponda. Respeta siempre la veracidad de los datos de la motocicleta.`
       : `No se proporcionaron indicaciones particulares.\nCrea una presentación original y espontánea.\nEvita repetir estructuras utilizadas en otros videos.`);
 
-  const body = {
-    systemInstruction: { parts: [{ text: SISTEMA }] },
-    contents: [{ role: "user", parts: [{ text: usuario }] }],
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 2048,
-      responseMimeType: "application/json",
-      thinkingConfig: { thinkingBudget: 0 },
-      responseSchema: {
-        type: "OBJECT",
-        properties: {
-          prompt_video: { type: "STRING" },
-          caption: { type: "STRING" },
-          hashtags: { type: "ARRAY", items: { type: "STRING" } },
-        },
-        required: ["prompt_video", "caption", "hashtags"],
-      },
-    },
-  };
+  const proveedores = [];
+  if (groqKey) proveedores.push({ nombre: "groq", fn: () => llamarGroq(groqKey, usuario) });
+  if (geminiKey) proveedores.push({ nombre: "gemini", fn: () => llamarGemini(geminiKey, usuario) });
 
-  let respGemini;
-  try {
-    respGemini = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify(body),
-      }
-    );
-  } catch {
-    return json({ error: "No se pudo conectar con Gemini. Intenta de nuevo." }, 502);
-  }
-
-  const datosGemini = await respGemini.json().catch(() => null);
-  if (!respGemini.ok) {
-    const detalle = datosGemini?.error?.message || "";
-    if (respGemini.status === 400 || respGemini.status === 403) {
-      return json({ error: "La clave GEMINI_API_KEY no es válida o no tiene permisos. Revísala en Netlify." }, 502);
+  const errores = [];
+  for (const p of proveedores) {
+    try {
+      const r = await p.fn();
+      return json({
+        ok: true,
+        proveedor: p.nombre,
+        moto: { id: moto.id, nombre: moto.nombre },
+        prompt_video: r.prompt_video,
+        caption: r.caption,
+        hashtags: r.hashtags,
+      });
+    } catch (err) {
+      errores.push(err.message);
     }
-    if (respGemini.status === 429) {
-      return json({ error: "Se alcanzó el límite temporal gratuito de Gemini. Intenta de nuevo en un minuto." }, 429);
-    }
-    return json({ error: detalle || "Gemini devolvió un error al generar el guion." }, 502);
   }
 
-  const candidato = datosGemini?.candidates?.[0];
-  let texto = (candidato?.content?.parts || []).map((p) => p.text || "").join("").trim();
-  if (!texto) {
-    return json({ error: "Gemini no devolvió contenido. Intenta de nuevo." }, 502);
-  }
-
-  texto = texto.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-
-  let r;
-  try {
-    r = JSON.parse(texto);
-  } catch {
-    return json({ error: "La respuesta de la IA no llegó en formato JSON válido. Intenta de nuevo." }, 502);
-  }
-
-  if (!r.prompt_video || !r.caption || !Array.isArray(r.hashtags)) {
-    return json({ error: "La respuesta de la IA llegó incompleta. Intenta de nuevo." }, 502);
-  }
-
-  return json({
-    ok: true,
-    moto: { id: moto.id, nombre: moto.nombre },
-    prompt_video: r.prompt_video,
-    caption: r.caption,
-    hashtags: r.hashtags,
-  });
+  return json({ error: `No se pudo generar el guion con la IA (${errores.join(" | ")}). Intenta de nuevo en unos segundos.` }, 502);
 }

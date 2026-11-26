@@ -1,15 +1,19 @@
 /* =====================================================================
-   VERCEL SERVERLESS FUNCTION: Generador de guiones de video con IA (Gemini)
+   VERCEL SERVERLESS FUNCTION: Generador de guiones de video con IA
    ---------------------------------------------------------------------
+   Soporta GROQ_API_KEY (openai/gpt-oss-120b) y GEMINI_API_KEY (gemini-2.5-flash)
+   con respaldo automático: si una falla o no está configurada, usa la otra.
    Endpoint: POST /api/generar-video
    Variables en Vercel (Project Settings > Environment Variables):
-     - GEMINI_API_KEY  (OBLIGATORIA, secreta, obtenida gratis en aistudio.google.com/apikey)
+     - GROQ_API_KEY    (secreta, opcional si usas Gemini; ej: gsk_... sin "Bearer")
+     - GEMINI_API_KEY  (secreta, opcional si usas Groq; ej: AIza... sin "Bearer")
      - SUPABASE_URL    (opcional, usa el proyecto por defecto)
      - SUPABASE_KEY    (opcional, clave pública publishable)
      - ADMIN_EMAILS    (opcional, correos autorizados separados por coma)
    ===================================================================== */
 
-const MODELO = "gemini-2.5-flash";
+const MODELO_GROQ = "openai/gpt-oss-120b";
+const MODELO_GEMINI = "gemini-2.5-flash";
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://kuxgkrkuqufxydmlhauc.supabase.co";
 const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_KEY || "sb_publishable_-FB8Gy5AF-rMhmI-BBKTWg_k9r2oxpW";
 
@@ -198,6 +202,90 @@ sin dividir en escenas, tomas, apartados ni listas.
 "hashtags" debe ser una lista de textos.
 `;
 
+function extraerJson(textoCrudo) {
+  const limpio = String(textoCrudo || "")
+    .trim()
+    .replace(/^```(?:json)?\s*/i, "")
+    .replace(/\s*```$/, "");
+  const r = JSON.parse(limpio);
+  if (!r.prompt_video || !r.caption || !Array.isArray(r.hashtags)) {
+    throw new Error("Respuesta incompleta de la IA.");
+  }
+  return r;
+}
+
+async function llamarGroq(apiKey, usuario) {
+  const clave = apiKey.replace(/^Bearer\s+/i, "").trim();
+  const resp = await fetch("https://api.groq.com/openai/v1/chat/completions", {
+    method: "POST",
+    headers: {
+      "Content-Type": "application/json",
+      Authorization: `Bearer ${clave}`,
+    },
+    body: JSON.stringify({
+      model: MODELO_GROQ,
+      messages: [
+        { role: "system", content: SISTEMA },
+        { role: "user", content: usuario },
+      ],
+      response_format: { type: "json_object" },
+      max_completion_tokens: 2048,
+    }),
+  });
+  const datos = await resp.json().catch(() => null);
+  if (!resp.ok) {
+    const msg = datos?.error?.message || `HTTP ${resp.status}`;
+    throw new Error(`Groq: ${msg}`);
+  }
+  const texto = datos?.choices?.[0]?.message?.content;
+  if (typeof texto !== "string" || !texto.trim()) {
+    throw new Error("Groq no devolvió contenido.");
+  }
+  return extraerJson(texto);
+}
+
+async function llamarGemini(apiKey, usuario) {
+  const clave = apiKey.replace(/^Bearer\s+/i, "").trim();
+  const resp = await fetch(
+    `https://generativelanguage.googleapis.com/v1beta/models/${MODELO_GEMINI}:generateContent`,
+    {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-goog-api-key": clave,
+      },
+      body: JSON.stringify({
+        systemInstruction: { parts: [{ text: SISTEMA }] },
+        contents: [{ role: "user", parts: [{ text: usuario }] }],
+        generationConfig: {
+          temperature: 0.7,
+          maxOutputTokens: 2048,
+          responseMimeType: "application/json",
+          thinkingConfig: { thinkingBudget: 0 },
+          responseSchema: {
+            type: "OBJECT",
+            properties: {
+              prompt_video: { type: "STRING" },
+              caption: { type: "STRING" },
+              hashtags: { type: "ARRAY", items: { type: "STRING" } },
+            },
+            required: ["prompt_video", "caption", "hashtags"],
+          },
+        },
+      }),
+    }
+  );
+  const datos = await resp.json().catch(() => null);
+  if (!resp.ok) {
+    const msg = datos?.error?.message || `HTTP ${resp.status}`;
+    throw new Error(`Gemini: ${msg}`);
+  }
+  const candidato = datos?.candidates?.[0];
+  const texto = (candidato?.content?.parts || []).map((p) => p.text || "").join("").trim();
+  if (!texto) throw new Error("Gemini no devolvió contenido.");
+  return extraerJson(texto);
+}
+
 export default async function handler(req, res) {
   res.setHeader("Access-Control-Allow-Origin", "*");
   res.setHeader("Access-Control-Allow-Methods", "POST, OPTIONS");
@@ -206,10 +294,11 @@ export default async function handler(req, res) {
   if (req.method === "OPTIONS") return res.status(204).end();
   if (req.method !== "POST") return res.status(405).json({ error: "Método no permitido." });
 
-  const apiKey = (process.env.GEMINI_API_KEY || "").trim();
-  if (!apiKey) {
+  const groqKey = (process.env.GROQ_API_KEY || "").trim();
+  const geminiKey = (process.env.GEMINI_API_KEY || "").trim();
+  if (!groqKey && !geminiKey) {
     return res.status(500).json({
-      error: "Falta configurar la variable GEMINI_API_KEY en Vercel (Project Settings > Environment Variables).",
+      error: "Falta configurar GROQ_API_KEY o GEMINI_API_KEY en Vercel (Environment Variables).",
     });
   }
 
@@ -260,7 +349,7 @@ export default async function handler(req, res) {
 
   if (!moto) return res.status(404).json({ error: "No se encontró esa moto en el catálogo." });
 
-  // 3. Armar mensaje de usuario y llamar a Gemini
+  // 3. Armar mensaje de usuario y llamar a Groq (primero) con respaldo automático en Gemini
   const usuario =
     `INFORMACIÓN DE LA MOTOCICLETA:\n\n` +
     `Nombre: ${moto.nombre}\n` +
@@ -273,79 +362,28 @@ export default async function handler(req, res) {
       ? `INDICACIONES PARTICULARES DEL ADMINISTRADOR:\n\n${instrucciones}\n\nTen en cuenta estas indicaciones al construir el guion. Intégralas de forma concreta en las acciones, la narrativa, los planos, el diálogo o el cierre, según corresponda. Respeta siempre la veracidad de los datos de la motocicleta.`
       : `No se proporcionaron indicaciones particulares.\nCrea una presentación original y espontánea.\nEvita repetir estructuras utilizadas en otros videos.`);
 
-  const body = {
-    systemInstruction: { parts: [{ text: SISTEMA }] },
-    contents: [{ role: "user", parts: [{ text: usuario }] }],
-    generationConfig: {
-      temperature: 0.7,
-      maxOutputTokens: 2048,
-      responseMimeType: "application/json",
-      thinkingConfig: { thinkingBudget: 0 },
-      responseSchema: {
-        type: "OBJECT",
-        properties: {
-          prompt_video: { type: "STRING" },
-          caption: { type: "STRING" },
-          hashtags: { type: "ARRAY", items: { type: "STRING" } },
-        },
-        required: ["prompt_video", "caption", "hashtags"],
-      },
-    },
-  };
+  const proveedores = [];
+  if (groqKey) proveedores.push({ nombre: "groq", fn: () => llamarGroq(groqKey, usuario) });
+  if (geminiKey) proveedores.push({ nombre: "gemini", fn: () => llamarGemini(geminiKey, usuario) });
 
-  let respGemini;
-  try {
-    respGemini = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/${MODELO}:generateContent`,
-      {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-          "x-goog-api-key": apiKey,
-        },
-        body: JSON.stringify(body),
-      }
-    );
-  } catch {
-    return res.status(502).json({ error: "No se pudo conectar con Gemini. Intenta de nuevo." });
-  }
-
-  const datosGemini = await respGemini.json().catch(() => null);
-  if (!respGemini.ok) {
-    const detalle = datosGemini?.error?.message || "";
-    if (respGemini.status === 400 || respGemini.status === 403) {
-      return res.status(502).json({ error: "La clave GEMINI_API_KEY no es válida o no tiene permisos. Revísala en Vercel." });
+  const errores = [];
+  for (const p of proveedores) {
+    try {
+      const r = await p.fn();
+      return res.status(200).json({
+        ok: true,
+        proveedor: p.nombre,
+        moto: { id: moto.id, nombre: moto.nombre },
+        prompt_video: r.prompt_video,
+        caption: r.caption,
+        hashtags: r.hashtags,
+      });
+    } catch (err) {
+      errores.push(err.message);
     }
-    if (respGemini.status === 429) {
-      return res.status(429).json({ error: "Se alcanzó el límite temporal gratuito de Gemini. Intenta de nuevo en un minuto." });
-    }
-    return res.status(502).json({ error: detalle || "Gemini devolvió un error al generar el guion." });
   }
 
-  const candidato = datosGemini?.candidates?.[0];
-  let texto = (candidato?.content?.parts || []).map((p) => p.text || "").join("").trim();
-  if (!texto) {
-    return res.status(502).json({ error: "Gemini no devolvió contenido. Intenta de nuevo." });
-  }
-
-  texto = texto.replace(/^```(?:json)?\s*/i, "").replace(/\s*```$/, "");
-
-  let r;
-  try {
-    r = JSON.parse(texto);
-  } catch {
-    return res.status(502).json({ error: "La respuesta de la IA no llegó en formato JSON válido. Intenta de nuevo." });
-  }
-
-  if (!r.prompt_video || !r.caption || !Array.isArray(r.hashtags)) {
-    return res.status(502).json({ error: "La respuesta de la IA llegó incompleta. Intenta de nuevo." });
-  }
-
-  return res.status(200).json({
-    ok: true,
-    moto: { id: moto.id, nombre: moto.nombre },
-    prompt_video: r.prompt_video,
-    caption: r.caption,
-    hashtags: r.hashtags,
+  return res.status(502).json({
+    error: `No se pudo generar el guion con la IA (${errores.join(" | ")}). Intenta de nuevo en unos segundos.`,
   });
 }
