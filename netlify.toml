@@ -8,3 +8,8 @@
 
 [functions]
   directory = "netlify/functions"
+
+[[redirects]]
+  from = "/api/generar-video"
+  to = "/.netlify/functions/generar-video"
+  status = 200

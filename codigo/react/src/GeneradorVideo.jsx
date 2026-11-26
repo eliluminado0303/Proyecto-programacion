@@ -15,7 +15,7 @@ import { almacen } from "./almacen.js";
 const URL_GENERADOR =
   import.meta.env.VITE_GENERAR_VIDEO_URL ||
   (import.meta.env.DEV && import.meta.env.VITE_N8N_GENERAR_URL) ||
-  "/.netlify/functions/generar-video";
+  "/api/generar-video";
 const ESPERA_MAX_MS = 120000;   // si la IA no responde en 2 minutos, se corta
 
 export default function GeneradorVideo({ motos }) {

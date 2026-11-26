@@ -1,0 +1,7 @@
+{
+  "functions": {
+    "api/generar-video.js": {
+      "maxDuration": 30
+    }
+  }
+}
