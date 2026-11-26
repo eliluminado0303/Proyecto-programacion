@@ -2,17 +2,21 @@
    GENERADOR DE VIDEO CON IA (panel del administrador)
    ---------------------------------------------------------------------
    El administrador elige una moto, escribe (opcional) indicaciones y pulsa "Generar".
-   La página llama al webhook de n8n, que:
+   La página llama a la Netlify Function (/.netlify/functions/generar-video) — o a un
+   webhook externo si se configura VITE_GENERAR_VIDEO_URL (o VITE_N8N_GENERAR_URL en dev) — que:
      1. comprueba que quien llama es el administrador (con el token de Supabase),
      2. toma los datos de esa moto,
-     3. le pide a Gemini el guion/prompt del video, el caption y los hashtags.
-   Aquí solo se muestra el resultado. Variable necesaria: VITE_N8N_GENERAR_URL
+     3. le pide a la IA el guion del video, el caption y los hashtags.
+   Aquí solo se muestra el resultado.
    ===================================================================== */
 import { useState } from "react";
 import { almacen } from "./almacen.js";
 
-const URL_N8N = import.meta.env.VITE_N8N_GENERAR_URL;
-const ESPERA_MAX_MS = 120000;   // si n8n/Gemini no responden en 2 minutos, se corta
+const URL_GENERADOR =
+  import.meta.env.VITE_GENERAR_VIDEO_URL ||
+  (import.meta.env.DEV && import.meta.env.VITE_N8N_GENERAR_URL) ||
+  "/.netlify/functions/generar-video";
+const ESPERA_MAX_MS = 120000;   // si la IA no responde en 2 minutos, se corta
 
 export default function GeneradorVideo({ motos }) {
   const [motoId, setMotoId] = useState("");
@@ -29,7 +33,7 @@ export default function GeneradorVideo({ motos }) {
   const generar = async (e) => {
     e.preventDefault();
     setAviso(null);
-    if (!URL_N8N) return setAviso({ tipo: "error", texto: "Falta configurar VITE_N8N_GENERAR_URL (la dirección del webhook de n8n)." });
+    if (!URL_GENERADOR) return setAviso({ tipo: "error", texto: "No hay dirección configurada para el generador de guiones." });
     if (!motoId) return setAviso({ tipo: "error", texto: "Elige primero la moto." });
 
     setCargando(true); setResultado(null);
@@ -37,19 +41,19 @@ export default function GeneradorVideo({ motos }) {
     const reloj = setTimeout(() => control.abort(), ESPERA_MAX_MS);
     try {
       const token = await almacen.tokenSesion();
-      const resp = await fetch(URL_N8N, {
+      const resp = await fetch(URL_GENERADOR, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ token, moto_id: motoId, instrucciones: instrucciones.trim() }),
         signal: control.signal,
       });
-      if (resp.status === 401) throw new Error("n8n no reconoció tu sesión. Cierra sesión y vuelve a entrar.");
+      if (resp.status === 401) throw new Error("No se reconoció tu sesión de administrador. Cierra sesión y vuelve a entrar.");
       const datos = await resp.json().catch(() => null);
-      if (!resp.ok || !datos || datos.error) throw new Error((datos && datos.error) || "n8n no pudo generar el video. Revisa la ejecución en n8n.");
+      if (!resp.ok || !datos || datos.error) throw new Error((datos && datos.error) || "No se pudo generar el guion. Intenta de nuevo en unos segundos.");
       setResultado(datos);
     } catch (err) {
       const esRedLocal = /failed to fetch|networkerror|load failed/i.test(String(err && err.message))
-        && /^http:\/\/(localhost|127\.0\.0\.1)\b/i.test(URL_N8N);
+        && /^http:\/\/(localhost|127\.0\.0\.1)\b/i.test(URL_GENERADOR);
       const texto = err.name === "AbortError"
         ? "Se demoró demasiado. Intenta de nuevo."
         : esRedLocal
