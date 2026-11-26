@@ -13,7 +13,7 @@
    ===================================================================== */
 
 const MODELO_GROQ = "openai/gpt-oss-120b";
-const MODELO_GEMINI = "gemini-2.5-flash";
+const MODELO_GEMINI = "gemini-3.8-flash";
 const SUPABASE_URL = process.env.SUPABASE_URL || process.env.VITE_SUPABASE_URL || "https://kuxgkrkuqufxydmlhauc.supabase.co";
 const SUPABASE_KEY = process.env.SUPABASE_KEY || process.env.VITE_SUPABASE_KEY || "sb_publishable_-FB8Gy5AF-rMhmI-BBKTWg_k9r2oxpW";
 
@@ -261,7 +261,6 @@ async function llamarGemini(apiKey, usuario) {
           temperature: 0.7,
           maxOutputTokens: 2048,
           responseMimeType: "application/json",
-          thinkingConfig: { thinkingBudget: 0 },
           responseSchema: {
             type: "OBJECT",
             properties: {
